@@ -122,7 +122,7 @@ public static class MerchantCenterSyncResources
         ["Connection.How.3"] = "Deleted, unpublished and held-back products are removed from Google.",
         ["Connection.How.4"] = "Once a day every product is compared with what Google has, and products are refreshed before Google's 30-day expiry.",
         ["Connection.How.5"] = "Products use the same checks, categories and settings as the feed file.",
-        ["Connection.How.Tip"] = "Approval status and Google's reasons for disapproved products come in the next release.",
+        ["Connection.How.Tip"] = "See which products Google approved, and its reasons for the rest, on the Products in Google tab.",
         ["Connection.Details"] = "Connection",
         ["Connection.Project"] = "Google Cloud project",
         ["Connection.Registered.Label"] = "Registered",

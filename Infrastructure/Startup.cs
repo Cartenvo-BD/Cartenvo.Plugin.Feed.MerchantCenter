@@ -27,6 +27,7 @@ public class MerchantCenterStartup : INopStartup
         services.AddScoped<MerchantSyncStore>();
         services.AddScoped<MerchantSyncService>();
         services.AddScoped<FeedCards>();
+        services.AddScoped<GoogleStatusService>();
         services.AddHttpClient(MerchantCenterDefaults.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(60);

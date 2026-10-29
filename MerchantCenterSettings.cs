@@ -66,5 +66,19 @@ public class MerchantCenterSettings : ISettings
     /// <summary>Another Merchant API address, for testing against a local stand-in. Empty uses Google's.</summary>
     public string ApiBaseUrl { get; set; } = "";
 
+    // Status read back from Google (release 3)
+
+    /// <summary>When product statuses were last read from Google. Null: never.</summary>
+    public DateTime? StatusReadOnUtc { get; set; }
+
+    /// <summary>Why the last status read failed, in the admin's language. Empty when it worked.</summary>
+    public string StatusReadError { get; set; } = "";
+
+    /// <summary>How often statuses are read. Google updates them a few times a day.</summary>
+    public int StatusEveryHours { get; set; } = 12;
+
+    /// <summary>Statuses can be read with a key that has access and is registered; a data source isn't needed.</summary>
+    public bool ApiCanRead => !string.IsNullOrEmpty(ApiKeyEncrypted) && !string.IsNullOrEmpty(ApiMerchantId) && ApiRegistered;
+
     public bool ApiConnected => !string.IsNullOrEmpty(ApiKeyEncrypted) && !string.IsNullOrEmpty(ApiMerchantId) && !string.IsNullOrEmpty(ApiDataSource);
 }

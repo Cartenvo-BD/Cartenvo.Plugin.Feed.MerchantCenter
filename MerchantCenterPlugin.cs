@@ -8,13 +8,33 @@ using Nop.Services.Localization;
 using Nop.Services.Plugins;
 using Nop.Services.ScheduleTasks;
 using Nop.Services.Security;
+using Nop.Core.Domain.Cms;
+using Nop.Services.Cms;
+using Nop.Web.Framework.Infrastructure;
 
 namespace Cartenvo.Plugin.Feed.MerchantCenter;
 
 public class MerchantCenterPlugin(ISettingService settings, ILocalizationService localization,
-    IPermissionService permissions, IWebHelper webHelper, IScheduleTaskService tasks, INopFileProvider files)
-    : BasePlugin, IMiscPlugin
+    IPermissionService permissions, IWebHelper webHelper, IScheduleTaskService tasks, INopFileProvider files,
+    WidgetSettings widgetSettings)
+    : BasePlugin, IMiscPlugin, IWidgetPlugin
 {
+    // The Google status panel on the admin product page (release 3).
+    public bool HideInWidgetList => true;
+
+    public Task<IList<string>> GetWidgetZonesAsync() => Task.FromResult<IList<string>>([AdminWidgetZones.ProductDetailsBlock]);
+
+    public Type GetWidgetViewComponent(string widgetZone) => typeof(Components.GoogleStatusPanelViewComponent);
+
+    /// <summary>nopCommerce only shows widgets that are switched on; the panel is part of the plugin, so it always is.</summary>
+    private async Task ActivateWidgetAsync()
+    {
+        if (widgetSettings.ActiveWidgetSystemNames.Contains(MerchantCenterDefaults.SystemName))
+            return;
+        widgetSettings.ActiveWidgetSystemNames.Add(MerchantCenterDefaults.SystemName);
+        await settings.SaveSettingAsync(widgetSettings);
+    }
+
     public override string GetConfigurationPageUrl() => $"{webHelper.GetStoreLocation()}Admin/MerchantCenter/Configure";
 
     public override async Task InstallAsync()
@@ -22,6 +42,7 @@ public class MerchantCenterPlugin(ISettingService settings, ILocalizationService
         await settings.SaveSettingAsync(new MerchantCenterSettings());
         await localization.AddOrUpdateLocaleResourceAsync(MerchantCenterResources.All());
         await EnsureTasksAsync();
+        await ActivateWidgetAsync();
         await base.InstallAsync();
     }
 
@@ -33,6 +54,7 @@ public class MerchantCenterPlugin(ISettingService settings, ILocalizationService
     {
         await localization.AddOrUpdateLocaleResourceAsync(MerchantCenterResources.All());
         await EnsureTasksAsync();
+        await ActivateWidgetAsync();
         await base.UpdateAsync(currentVersion, targetVersion);
     }
 
@@ -41,7 +63,8 @@ public class MerchantCenterPlugin(ISettingService settings, ILocalizationService
         foreach (var (name, type, seconds) in new[]
         {
             (MerchantCenterDefaults.TaskName, MerchantCenterDefaults.TaskType, MerchantCenterDefaults.TaskIntervalSeconds),
-            (MerchantCenterDefaults.SyncTaskName, MerchantCenterDefaults.SyncTaskType, MerchantCenterDefaults.SyncTaskIntervalSeconds)
+            (MerchantCenterDefaults.SyncTaskName, MerchantCenterDefaults.SyncTaskType, MerchantCenterDefaults.SyncTaskIntervalSeconds),
+            (MerchantCenterDefaults.StatusTaskName, MerchantCenterDefaults.StatusTaskType, MerchantCenterDefaults.StatusTaskIntervalSeconds)
         })
         {
             if (await tasks.GetTaskByTypeAsync(type) != null)
@@ -60,12 +83,14 @@ public class MerchantCenterPlugin(ISettingService settings, ILocalizationService
 
     public override async Task UninstallAsync()
     {
-        foreach (var type in new[] { MerchantCenterDefaults.TaskType, MerchantCenterDefaults.SyncTaskType })
+        foreach (var type in new[] { MerchantCenterDefaults.TaskType, MerchantCenterDefaults.SyncTaskType, MerchantCenterDefaults.StatusTaskType })
             if (await tasks.GetTaskByTypeAsync(type) is { } task)
                 await tasks.DeleteTaskAsync(task);
         // nopCommerce reverses this assembly's migrations after UninstallAsync, which drops the plugin's tables.
         await settings.DeleteSettingAsync<MerchantCenterSettings>();
         await localization.DeleteLocaleResourcesAsync(MerchantCenterDefaults.ResourcePrefix);
+        if (widgetSettings.ActiveWidgetSystemNames.Remove(MerchantCenterDefaults.SystemName))
+            await settings.SaveSettingAsync(widgetSettings);
         foreach (var permission in new MerchantCenterPermissions().AllConfigs)
             await permissions.DeletePermissionAsync(permission.SystemName);
         var folder = files.MapPath(MerchantCenterDefaults.DataFolder);

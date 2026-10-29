@@ -1,0 +1,220 @@
+@model StatusPageModel
+@using Cartenvo.MerchantCenter.Core.MerchantApi
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "Nav.Google").Text;
+    ViewData["McTab"] = "google";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    var counts = Model.Counts;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var shown = counts.Total == 0 ? 0 : (int)Math.Round(100.0 * (counts.Approved + counts.Limited) / counts.Total);
+    var circumference = 2 * Math.PI * 38;
+    var dash = (circumference * shown / 100).ToString("0.##", inv) + " " + circumference.ToString("0.##", inv);
+    string Pill(GoogleStatus s) => s switch { GoogleStatus.Approved => "ok", GoogleStatus.Limited => "warning", GoogleStatus.Disapproved => "error", _ => "muted" };
+    string Tone(string severity) => severity == "DISAPPROVED" ? "error" : severity == "DEMOTED" ? "warning" : "info";
+    string Ago(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalMinutes < 1) return T(P + "Ago.Now").Text;
+        if (span.TotalHours < 1) return string.Format(T(P + "Ago.Minutes").Text, (int)span.TotalMinutes);
+        if (span.TotalDays < 1) return string.Format(T(P + "Ago.Hours").Text, (int)span.TotalHours);
+        return string.Format(T(P + "Ago.Days").Text, (int)span.TotalDays);
+    }
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+@if (!Model.CanRead)
+{
+    <div class="mc-card mc-empty">
+        <div class="icon muted"><i class="fab fa-google"></i></div>
+        <h3>@T(P + "Status.Title")</h3>
+        <p>@T(P + "Status.Connect")</p>
+        <a asp-controller="MerchantCenterSync" asp-action="Connection" class="mc-btn primary"><i class="fas fa-plug"></i> @T(P + "Nav.Connection")</a>
+    </div>
+}
+else
+{
+    <div class="mc-toolbar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <p class="mc-intro mb-0" style="flex:1 1 320px">@T(P + "Status.Intro")</p>
+        <span class="small muted" id="status-when">
+            @if (Model.ReadOnUtc is { } read)
+            {
+                @string.Format(T(P + "Status.ReadOn").Text, Ago(read))
+            }
+        </span>
+        <button type="button" class="mc-btn primary" id="status-refresh" disabled="@Model.Running"><i class="fas fa-sync-alt"></i> @T(P + "Status.Refresh")</button>
+    </div>
+    <div class="mc-result" id="status-result" hidden></div>
+    @if (!string.IsNullOrEmpty(Model.Error))
+    {
+        <div class="mc-callout error"><i class="fas fa-exclamation-triangle"></i><div>@T(P + "Status.Failed") @Model.Error</div></div>
+    }
+
+    @if (Model.ReadOnUtc == null)
+    {
+        <div class="mc-card mc-empty">
+            <div class="icon muted"><i class="fas fa-cloud-download-alt"></i></div>
+            <h3>@T(P + "Status.Never")</h3>
+            <p>@T(P + "Status.Never.Text")</p>
+        </div>
+    }
+    else
+    {
+        <div class="mc-kpis">
+            <div class="mc-kpi ring">
+                <div class="mc-ring">
+                    <svg width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">
+                        <circle cx="46" cy="46" r="38" fill="none" stroke="#eef2f7" stroke-width="10" />
+                        @if (counts.Total > 0)
+                        {
+                            <circle class="fg" cx="46" cy="46" r="38" fill="none" stroke="#16a34a" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 @circumference.ToString("0.##", inv)" data-mc-dash="@dash" />
+                        }
+                    </svg>
+                    <b>@(counts.Total == 0 ? "—" : shown + "%")</b>
+                </div>
+                <div>
+                    <div class="label">@T(P + "Status.Shown")</div>
+                    <div class="small muted mt-1">@string.Format(T(P + "Status.Shown.Text").Text, (counts.Approved + counts.Limited).ToString("N0"), counts.Total.ToString("N0"))</div>
+                </div>
+            </div>
+            @foreach (var (status, value, css, icon) in new[]
+            {
+                (GoogleStatus.Approved, counts.Approved, "good", "fa-check-circle"),
+                (GoogleStatus.Limited, counts.Limited, "warn", "fa-adjust"),
+                (GoogleStatus.Disapproved, counts.Disapproved, "bad", "fa-ban"),
+                (GoogleStatus.Pending, counts.Pending, "", "fa-hourglass-half")
+            })
+            {
+                <a class="mc-kpi @css" asp-action="Index" asp-route-status="@((int)status)" aria-current="@(Model.Status == (int)status ? "true" : null)" style="@(Model.Status == (int)status ? "outline:2px solid var(--mc-brand)" : null)">
+                    <div class="label"><i class="fas @icon"></i> @T(P + "Status." + status)</div>
+                    <div class="value">@value.ToString("N0")</div>
+                </a>
+            }
+        </div>
+
+        @if (Model.Issues.Count > 0)
+        {
+            <div class="mc-card">
+                <h3><i class="fas fa-clipboard-list" style="color:#2563eb"></i> @T(P + "Status.Issues")</h3>
+                <p class="muted small">@T(P + "Status.Issues.Text")</p>
+                <div class="mc-table-wrap">
+                    <table class="mc-table">
+                        <tbody>
+                            @foreach (var group in Model.Issues.Take(30))
+                            {
+                                <tr>
+                                    <td style="width:1%"><span class="mc-pill @Tone(group.Severity) nodot">@T(P + "Status.Severity." + (group.Severity is "DISAPPROVED" or "DEMOTED" ? group.Severity : "OTHER"))</span></td>
+                                    <td>
+                                        <b>@(group.Description ?? group.Code)</b>
+                                        @if (!string.IsNullOrEmpty(group.Detail)) { <div class="small muted">@group.Detail</div> }
+                                        @if (!string.IsNullOrEmpty(group.Documentation)) { <a class="small mc-ext" href="@group.Documentation" target="_blank" rel="noopener">@T(P + "Status.HowToFix") <i class="fas fa-external-link-alt"></i></a> }
+                                    </td>
+                                    <td class="text-right" style="white-space:nowrap">
+                                        <a class="mc-btn sm" asp-action="Index" asp-route-issue="@group.Code">@string.Format(T(P + "Status.Products").Text, group.Products.ToString("N0"))</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <div class="mc-card">
+            <form method="get" asp-action="Index" class="mc-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+                <h3 class="mb-0" style="flex:1 1 200px"><i class="fas fa-list" style="color:#2563eb"></i> @T(P + "Status.List")</h3>
+                @if (Model.Status != null) { <input type="hidden" name="status" value="@Model.Status" /> }
+                @if (!string.IsNullOrEmpty(Model.Issue)) { <input type="hidden" name="issue" value="@Model.Issue" /> }
+                <input name="q" value="@Model.Search" class="mc-input" style="max-width:260px" placeholder="@T(P + "Status.Search")" aria-label="@T(P + "Status.Search")" />
+                <button type="submit" class="mc-btn"><i class="fas fa-search"></i></button>
+                @if (Model.Status != null || !string.IsNullOrEmpty(Model.Issue) || !string.IsNullOrEmpty(Model.Search))
+                {
+                    <a class="mc-btn ghost" asp-action="Index"><i class="fas fa-times"></i> @T(P + "Status.ClearFilter")</a>
+                }
+            </form>
+            @if (Model.Rows.Count == 0)
+            {
+                <p class="muted mb-0">@T(P + (counts.Total == 0 ? "Status.NoProducts" : "Status.NoMatch"))</p>
+            }
+            else
+            {
+                <div class="mc-table-wrap">
+                    <table class="mc-table">
+                        <tbody>
+                            @foreach (var row in Model.Rows)
+                            {
+                                <tr>
+                                    <td style="width:56px">@if (row.ImageUrl != null) { <img src="@row.ImageUrl" alt="" width="44" height="44" style="object-fit:contain;border-radius:8px" /> }</td>
+                                    <td>
+                                        <b>@(row.Name ?? row.OfferId)</b>
+                                        <div class="small muted mono">@row.OfferId · @row.FeedLabel · @row.ContentLanguage @if (!row.FromApi) {<span>· @T(P + "Status.FromFile")</span>}</div>
+                                        @foreach (var issue in row.Issues.Where(i => i.Resolution != "PENDING_PROCESSING").Take(3))
+                                        {
+                                            <div class="small"><span class="mc-pill @Tone(issue.Severity) nodot" style="padding:1px 7px">@T(P + "Status.Severity." + (issue.Severity is "DISAPPROVED" or "DEMOTED" ? issue.Severity : "OTHER"))</span> @(issue.Description ?? issue.Code)</div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(row.DisapprovedCountries))
+                                        {
+                                            <div class="small muted">@string.Format(T(P + "Status.RefusedIn").Text, row.DisapprovedCountries.Replace(",", ", "))</div>
+                                        }
+                                    </td>
+                                    <td class="text-right" style="white-space:nowrap">
+                                        <span class="mc-pill @Pill(row.Status)">@T(P + "Status." + row.Status)</span>
+                                        @if (row.ProductId > 0)
+                                        {
+                                            <div class="mt-1">
+                                                <a class="mc-btn sm ghost" href="@Url.Action("Preview", "MerchantCenter", new { productId = row.ProductId })" title="@T(P + "Issues.Preview")"><i class="far fa-eye"></i></a>
+                                                <a class="mc-btn sm" href="@Url.Action("Edit", "Product", new { id = row.ProductId })" target="_blank" rel="noopener"><i class="fas fa-pen"></i> @T(P + "Issues.Edit")</a>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mc-pager">
+                    <span>@string.Format(T(P + "Status.Count").Text, Model.Total.ToString("N0"))</span>
+                    @if (Model.TotalPages > 1)
+                    {
+                        <a class="mc-btn sm @(Model.Page <= 1 ? "disabled" : null)" asp-action="Index" asp-route-status="@Model.Status" asp-route-issue="@Model.Issue" asp-route-q="@Model.Search" asp-route-page="@(Math.Max(1, Model.Page - 1))"><i class="fas fa-chevron-left"></i> @T(P + "Issues.Prev")</a>
+                        <span>@Model.Page / @Model.TotalPages</span>
+                        <a class="mc-btn sm @(Model.Page >= Model.TotalPages ? "disabled" : null)" asp-action="Index" asp-route-status="@Model.Status" asp-route-issue="@Model.Issue" asp-route-q="@Model.Search" asp-route-page="@(Math.Min(Model.TotalPages, Model.Page + 1))">@T(P + "Issues.Next") <i class="fas fa-chevron-right"></i></a>
+                    }
+                </div>
+            }
+        </div>
+        <p class="muted small"><i class="fas fa-info-circle"></i> @string.Format(T(P + "Status.Every").Text, Model.EveryHours)</p>
+    }
+}
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />
+<script>
+    (function () {
+        const button = document.getElementById('status-refresh');
+        if (!button) return;
+        button.addEventListener('click', async function () {
+            const result = document.getElementById('status-result');
+            button.disabled = true;
+            button.querySelector('i').classList.add('fa-spin');
+            result.hidden = false;
+            result.className = 'mc-result';
+            result.textContent = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Status.Reading").Text));
+            try {
+                const data = await mc.post('@Url.Action("Refresh")');
+                result.className = 'mc-result ' + (data.ok ? 'ok' : 'bad');
+                result.textContent = data.message;
+                if (data.ok) setTimeout(function () { location.reload(); }, 900);
+            } catch (e) {
+                result.className = 'mc-result bad';
+                result.textContent = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Status.Failed").Text));
+            } finally {
+                button.disabled = false;
+                button.querySelector('i').classList.remove('fa-spin');
+            }
+        });
+    })();
+</script>

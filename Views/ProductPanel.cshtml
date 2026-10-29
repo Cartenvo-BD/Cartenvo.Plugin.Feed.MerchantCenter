@@ -1,0 +1,59 @@
+@model ProductStatusPanelModel
+@using Cartenvo.MerchantCenter.Core.MerchantApi
+@{
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    string Pill(GoogleStatus s) => s switch { GoogleStatus.Approved => "#16a34a", GoogleStatus.Limited => "#d97706", GoogleStatus.Disapproved => "#dc2626", _ => "#64748b" };
+    string Tone(string severity) => severity == "DISAPPROVED" ? "#dc2626" : severity == "DEMOTED" ? "#d97706" : "#2563eb";
+}
+<div class="card card-secondary card-outline" id="merchant-center-google-status" data-card-name="merchant-center-google-status">
+    <div class="card-header with-border clearfix">
+        <div class="card-title"><i class="fab fa-google"></i> @T(P + "Panel.Title")</div>
+        <div class="card-tools float-right">
+            <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i></button>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (!Model.CanRead)
+        {
+            <p class="text-muted mb-0">@T(P + "Panel.Connect") <a href="@Url.Action("Connection", "MerchantCenterSync")">@T(P + "Nav.Connection")</a></p>
+        }
+        else if (Model.ReadOnUtc == null)
+        {
+            <p class="text-muted mb-0">@T(P + "Status.Never.Text") <a href="@Url.Action("Index", "MerchantCenterStatus")">@T(P + "Nav.Google")</a></p>
+        }
+        else if (Model.Rows.Count == 0)
+        {
+            <p class="text-muted mb-0">@T(P + "Panel.NotInGoogle") <a href="@Url.Action("Preview", "MerchantCenter", new { productId = Model.ProductId })">@T(P + "Panel.Preview")</a></p>
+        }
+        else
+        {
+            foreach (var row in Model.Rows)
+            {
+                <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-top:1px solid #eef2f7">
+                    <span style="flex:none;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:99px;color:#fff;background:@Pill(row.Status)">@T(P + "Status." + row.Status)</span>
+                    <div style="flex:1;min-width:0">
+                        <div class="text-muted small"><span style="font-family:monospace">@row.OfferId · @row.FeedLabel · @row.ContentLanguage</span> · @T(P + (row.FromApi ? "Panel.FromApi" : "Status.FromFile"))</div>
+                        @if (!string.IsNullOrEmpty(row.ApprovedCountries))
+                        {
+                            <div class="small">@string.Format(T(P + "Panel.ShownIn").Text, row.ApprovedCountries.Replace(",", ", "))</div>
+                        }
+                        @if (!string.IsNullOrEmpty(row.DisapprovedCountries))
+                        {
+                            <div class="small">@string.Format(T(P + "Status.RefusedIn").Text, row.DisapprovedCountries.Replace(",", ", "))</div>
+                        }
+                        @foreach (var issue in row.Issues)
+                        {
+                            <div class="small mt-1">
+                                <i class="fas fa-circle" style="font-size:.5rem;vertical-align:middle;color:@Tone(issue.Severity)"></i>
+                                <b>@(issue.Description ?? issue.Code)</b>
+                                @if (!string.IsNullOrEmpty(issue.Detail)) { <span class="text-muted">— @issue.Detail</span> }
+                                @if (!string.IsNullOrEmpty(issue.Documentation)) { <a href="@issue.Documentation" target="_blank" rel="noopener">@T(P + "Status.HowToFix") <i class="fas fa-external-link-alt" style="font-size:.7em"></i></a> }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            <p class="small text-muted mb-0 mt-2">@string.Format(T(P + "Panel.ReadOn").Text, Model.ReadOnUtc.Value.ToLocalTime().ToString("g")) <a href="@Url.Action("Index", "MerchantCenterStatus")">@T(P + "Nav.Google")</a></p>
+        }
+    </div>
+</div>

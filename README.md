@@ -27,6 +27,9 @@ Merchant API and changes reach Google within minutes.
 - **Automatic sync through Google's Merchant API.** Optional. New products, prices, stock and removals reach Google
   within 5 minutes, instead of once a day. Only products that changed are sent, and every product is compared with
   Google once a day.
+- **Products in Google.** See which products Google approved, limited or refused, with Google's own explanation of
+  each problem and a link to how to fix it. Works with feed files too: only the connection is needed. A panel on the
+  product edit page shows that product's status.
 - **Product IDs that match your old plugin.** SKU, product ID, or SKU with the product ID as a fallback, so moving
   from another Google Shopping plugin keeps your products' history.
 
@@ -59,6 +62,18 @@ Then turn on **Sync automatically** for a feed. The first sync sends every produ
   expiry.
 - **Products Google refused** lists each refusal with Google's reason. A fixed product is sent again with the next
   sync.
+
+### Products in Google
+
+With the connection set up (steps 1 and 2 are enough; automatic sync isn't needed), the **Products in Google** tab
+reads every product from Merchant Center every 12 hours, or when you click **Refresh now**:
+
+- how many products are approved, limited (refused in a country or shown less), disapproved and pending;
+- Google's issues grouped by kind, most serious first, with how many products each affects and Google's help link;
+- every product with its status and issues, searchable and filterable by status or issue.
+
+Products are matched to your catalogue by item ID, whichever data source they came from. The product edit page gets a
+**Google Merchant Center** panel with that product's status per country. Google reviews changes within a few hours.
 
 Switching a feed back to a feed file removes its products from the plugin's data source within 5 minutes. If you
 added a feed's URL in Merchant Center before switching it to automatic sync, delete that data source in Merchant
@@ -139,11 +154,6 @@ your `plugin.json` with `"DependsOnSystemNames": [ "Feed.CartenvoMerchantCenter"
 
 [Merchant Center Pro](https://cartenvo.com/plugins/merchant-center) is Cartenvo's paid add-on built this way: Google Ads
 custom labels, title rules and more.
-
-## Coming next
-
-- Product status read back from Google: a "Products in Google" page with approvals and Google's reasons for
-  disapprovals, and a panel on the product edit page.
 
 ## Licence
 

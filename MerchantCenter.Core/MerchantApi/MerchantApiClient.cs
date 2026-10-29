@@ -106,6 +106,24 @@ public sealed class MerchantApiClient(HttpClient http, Func<CancellationToken, T
         return result.Status == 404 ? result with { Status = 204 } : result;
     }
 
+    /// <summary>One page of the processed products in the account, from every data source, with their status and issues.</summary>
+    public Task<ApiResult> ListProductsAsync(int pageSize = 1000, string? pageToken = null, CancellationToken cancellationToken = default)
+    {
+        var path = $"/products/v1/{Account}/products?pageSize={Math.Clamp(pageSize, 1, 1000)}";
+        if (!string.IsNullOrEmpty(pageToken))
+            path += "&pageToken=" + Uri.EscapeDataString(pageToken);
+        return SendAsync(HttpMethod.Get, path, null, cancellationToken);
+    }
+
+    /// <summary>One page of a Merchant Center report, written in Google's report query language.</summary>
+    public Task<ApiResult> SearchReportsAsync(string query, int pageSize = 1000, string? pageToken = null, CancellationToken cancellationToken = default)
+    {
+        var body = new JsonObject { ["query"] = query, ["pageSize"] = Math.Clamp(pageSize, 1, 100_000) };
+        if (!string.IsNullOrEmpty(pageToken))
+            body["pageToken"] = pageToken;
+        return SendAsync(HttpMethod.Post, $"/reports/v1/{Account}/reports:search", body, cancellationToken);
+    }
+
     private async Task<ApiResult> SendAsync(HttpMethod method, string path, JsonObject? body, CancellationToken cancellationToken)
     {
         var json = body?.ToJsonString();

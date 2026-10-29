@@ -22,6 +22,12 @@ public static class MerchantCenterDefaults
     /// <summary>Changed products reach Google within about this long.</summary>
     public const int SyncTaskIntervalSeconds = 300;
 
+    public const string StatusTaskName = "Merchant Center status (Cartenvo)";
+    public const string StatusTaskType = "Cartenvo.Plugin.Feed.MerchantCenter.Services.GoogleStatusTask";
+
+    /// <summary>The task checks hourly; it reads statuses when <see cref="MerchantCenterSettings.StatusEveryHours"/> have passed.</summary>
+    public const int StatusTaskIntervalSeconds = 3600;
+
     public const string HttpClientName = "CartenvoMerchantApi";
 
     public const string CloudConsoleUrl = "https://console.cloud.google.com/";

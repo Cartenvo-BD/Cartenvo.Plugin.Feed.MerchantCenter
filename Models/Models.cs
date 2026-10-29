@@ -230,3 +230,48 @@ public class ConnectionModel
     /// <summary>The step to work on: 1 key, 2 access and registration, 3 connect, 4 done.</summary>
     public int Step => !KeySaved || !KeyReadable ? 1 : !Registered ? 2 : !Connected ? 3 : 4;
 }
+
+// Products in Google (release 3)
+
+public class StatusRowModel
+{
+    public int ProductId { get; set; }
+    public string Name { get; set; }
+    public string OfferId { get; set; }
+    public string FeedLabel { get; set; }
+    public string ContentLanguage { get; set; }
+    public Cartenvo.MerchantCenter.Core.MerchantApi.GoogleStatus Status { get; set; }
+    public string ApprovedCountries { get; set; }
+    public string DisapprovedCountries { get; set; }
+    public List<Cartenvo.MerchantCenter.Core.MerchantApi.GoogleIssue> Issues { get; set; } = [];
+    public bool FromApi { get; set; }
+    public string ImageUrl { get; set; }
+    public DateTime? ReadOnUtc { get; set; }
+}
+
+public class StatusPageModel
+{
+    public bool CanRead { get; set; }
+    public DateTime? ReadOnUtc { get; set; }
+    public string Error { get; set; }
+    public int EveryHours { get; set; }
+    public bool Running { get; set; }
+    public Services.StatusCounts Counts { get; set; } = new(0, 0, 0, 0);
+    public List<Services.StatusIssueGroup> Issues { get; set; } = [];
+    public List<StatusRowModel> Rows { get; set; } = [];
+    public int? Status { get; set; }
+    public string Issue { get; set; }
+    public string Search { get; set; }
+    public int Page { get; set; }
+    public int Total { get; set; }
+    public int TotalPages { get; set; }
+}
+
+public class ProductStatusPanelModel
+{
+    public bool CanRead { get; set; }
+    public int ProductId { get; set; }
+    public DateTime? ReadOnUtc { get; set; }
+    public List<StatusRowModel> Rows { get; set; } = [];
+}
+

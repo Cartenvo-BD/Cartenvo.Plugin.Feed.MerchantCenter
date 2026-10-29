@@ -91,6 +91,38 @@ public class MerchantSyncedItem : BaseEntity
     public string Error { get; set; }
 }
 
+/// <summary>
+/// A product as Merchant Center last reported it (release 3), from any data source: the plugin's API source or a feed
+/// file. Replaced on every status read.
+/// </summary>
+public class MerchantGoogleStatus : BaseEntity
+{
+    /// <summary>The nopCommerce product, or 0 when the offer ID matches none (an item from another system, say).</summary>
+    public int ProductId { get; set; }
+    public int? CombinationId { get; set; }
+    public string OfferId { get; set; }
+    public string ContentLanguage { get; set; }
+    public string FeedLabel { get; set; }
+
+    /// <summary><see cref="Cartenvo.MerchantCenter.Core.MerchantApi.GoogleStatus"/> as an int.</summary>
+    public int Status { get; set; }
+
+    /// <summary>Comma-separated country codes.</summary>
+    public string ApprovedCountries { get; set; }
+    public string DisapprovedCountries { get; set; }
+
+    /// <summary>JSON list of <see cref="Cartenvo.MerchantCenter.Core.MerchantApi.GoogleIssue"/>.</summary>
+    public string IssuesJson { get; set; }
+
+    /// <summary>Google's issue codes, comma-separated, for filtering without reading the JSON.</summary>
+    public string IssueCodes { get; set; }
+
+    /// <summary>The product came from the plugin's own API data source.</summary>
+    public bool FromApi { get; set; }
+    public DateTime? ExpiresOnUtc { get; set; }
+    public DateTime ReadOnUtc { get; set; }
+}
+
 /// <summary>Which Google product category a store category belongs to.</summary>
 public class MerchantCategoryMapping : BaseEntity
 {

@@ -11,8 +11,12 @@ namespace Cartenvo.Plugin.Feed.MerchantCenter.Extensibility;
 /// </summary>
 public static class ExtensionApi
 {
-    /// <summary>1: item extensions and admin tabs (release 2).</summary>
-    public const int Version = 1;
+    /// <summary>
+    /// 1: item extensions and admin tabs (release 2). 2: product status table and Merchant Center reports through
+    /// MerchantApiClient (release 3). Extensions built against a newer version should read this at run time
+    /// (reflection on the constant) and switch off what an older free plugin can't provide.
+    /// </summary>
+    public const int Version = 2;
 }
 
 /// <summary>

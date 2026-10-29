@@ -91,6 +91,29 @@ public class SyncSchemaMigration : Migration
     }
 }
 
+/// <summary>Release 3: product status read back from Google.</summary>
+// nopCommerce tells migrations apart by date alone, across all plugins: keep the time unusual.
+[NopMigration("2026/10/30 09:41:27:3814000", "Merchant Center status table", MigrationProcessType.NoMatter)]
+public class StatusSchemaMigration : Migration
+{
+    public override void Up()
+    {
+        if (Schema.Table(nameof(MerchantGoogleStatus)).Exists())
+            return;
+        SchemaMigration.Table<MerchantGoogleStatus>(this);
+        Create.Index("IX_MerchantGoogleStatus_Product").OnTable(nameof(MerchantGoogleStatus))
+            .OnColumn(nameof(MerchantGoogleStatus.ProductId)).Ascending();
+        Create.Index("IX_MerchantGoogleStatus_Status").OnTable(nameof(MerchantGoogleStatus))
+            .OnColumn(nameof(MerchantGoogleStatus.Status)).Ascending();
+    }
+
+    public override void Down()
+    {
+        if (Schema.Table(nameof(MerchantGoogleStatus)).Exists())
+            Delete.Table(nameof(MerchantGoogleStatus));
+    }
+}
+
 /// <summary>Adds the English texts on installation. Upgrades add new texts in MerchantCenterPlugin.UpdateAsync.</summary>
 [NopMigration("2026/10/28 20:01:00:0000000", "Merchant Center feed resources", MigrationProcessType.NoMatter)]
 public class ResourcesMigration : MigrationBase

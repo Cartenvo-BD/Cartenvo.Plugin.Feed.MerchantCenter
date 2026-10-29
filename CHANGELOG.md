@@ -2,6 +2,21 @@
 
 Versions are `<nopCommerce version>.<release>`, so release 1 is `4.80.1`, `4.90.1` and `5.00.1`.
 
+## 3
+
+Product status read back from Google.
+
+- **Products in Google** tab: approved, limited, disapproved and pending counts; Google's issues grouped by kind with
+  its explanations and help links; every product with its status, filterable by status and issue. Read every 12 hours
+  by a new task ("Merchant Center status (Cartenvo)") or with **Refresh now**.
+- Works with feed files as well as automatic sync: products from any data source are matched to the catalogue by item
+  ID, including attribute combinations.
+- **Google Merchant Center** panel on the admin product page with the product's status per country and its issues.
+- `MerchantApiClient` can list products and run Merchant Center reports, for extensions such as Merchant Center Pro.
+- Fixed: on narrow screens, wide tables no longer stretch two-column pages sideways.
+- Tested against Google itself (connection, registration, data source, product status) and a local stand-in with
+  statuses on 4.80 (SQL Server), 4.90 (PostgreSQL, 100,047 products) and 5.00 (SQL Server).
+
 ## 2
 
 Automatic sync through Google's Merchant API v1 (optional; feed files work as before).

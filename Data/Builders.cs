@@ -40,6 +40,18 @@ public class MerchantSyncQueueItemBuilder : NopEntityBuilder<MerchantSyncQueueIt
     public override void MapEntity(CreateTableExpressionBuilder table) { }
 }
 
+public class MerchantGoogleStatusBuilder : NopEntityBuilder<MerchantGoogleStatus>
+{
+    public override void MapEntity(CreateTableExpressionBuilder table) => table
+        .WithColumn(nameof(MerchantGoogleStatus.OfferId)).AsString(150).NotNullable()
+        .WithColumn(nameof(MerchantGoogleStatus.ContentLanguage)).AsString(10).NotNullable()
+        .WithColumn(nameof(MerchantGoogleStatus.FeedLabel)).AsString(50).NotNullable()
+        .WithColumn(nameof(MerchantGoogleStatus.ApprovedCountries)).AsString(1000).Nullable()
+        .WithColumn(nameof(MerchantGoogleStatus.DisapprovedCountries)).AsString(1000).Nullable()
+        .WithColumn(nameof(MerchantGoogleStatus.IssuesJson)).AsString(int.MaxValue).Nullable()
+        .WithColumn(nameof(MerchantGoogleStatus.IssueCodes)).AsString(1000).Nullable();
+}
+
 public class MerchantSyncedItemBuilder : NopEntityBuilder<MerchantSyncedItem>
 {
     public override void MapEntity(CreateTableExpressionBuilder table) => table
