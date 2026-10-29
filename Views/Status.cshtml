@@ -68,7 +68,7 @@ else
                 <div class="mc-ring">
                     <svg width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">
                         <circle cx="46" cy="46" r="38" fill="none" stroke="#eef2f7" stroke-width="10" />
-                        @if (counts.Total > 0)
+                        @if (shown > 0)
                         {
                             <circle class="fg" cx="46" cy="46" r="38" fill="none" stroke="#16a34a" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 @circumference.ToString("0.##", inv)" data-mc-dash="@dash" />
                         }
