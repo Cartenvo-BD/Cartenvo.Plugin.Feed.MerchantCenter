@@ -454,7 +454,10 @@ public class FeedBuilder(IRepository<Product> products,
                 additionalCharge += await priceCalculation.GetProductAttributeValuePriceAdjustmentAsync(product, value, context.Customer, context.Store);
             }
             if (valueNames.Count > 0)
-                item.Title = $"{title} - {string.Join(", ", valueNames)}";
+            {
+                item.VariantText = string.Join(", ", valueNames);
+                item.Title = $"{title} - {item.VariantText}";
+            }
 
             var combinationPictureId = context.CombinationPictureIds[combination.Id].FirstOrDefault();
             var combinationImage = combinationPictureId == 0 ? null : await PictureUrlAsync(combinationPictureId, null, context);

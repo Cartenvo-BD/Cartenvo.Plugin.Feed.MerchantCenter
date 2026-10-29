@@ -20,6 +20,9 @@ public sealed class FeedItem
     public string Id { get; set; } = "";
     public string? ItemGroupId { get; set; }
     public string Title { get; set; } = "";
+
+    /// <summary>The combination's attribute values, such as "Red, XL", which are also added to the title. Not sent to Google.</summary>
+    public string? VariantText { get; set; }
     public string Description { get; set; } = "";
     public string Link { get; set; } = "";
     public string? ImageLink { get; set; }

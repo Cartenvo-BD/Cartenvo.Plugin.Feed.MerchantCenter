@@ -16,7 +16,7 @@ Automatic sync through Google's Merchant API v1 (optional; feed files work as be
   new ID, and when a feed is deleted or switched back to a file.
 - A daily full comparison also refreshes every product before Google's 30-day expiry.
 - **Products Google refused** list with Google's reasons; the overview shows each feed's sync state.
-- Custom labels 0–4 in the feed file and the API sync.
+- Custom labels 0–4 in the feed file, the API sync and the product preview.
 - Hook points for other plugins: `IFeedItemExtension` changes products before they're sent, and `IAdminTabProvider`
   adds admin tabs (see README, Extending).
 - The Google connection tab shows a dot: green when connected, amber when set-up isn't finished, "Optional" otherwise.

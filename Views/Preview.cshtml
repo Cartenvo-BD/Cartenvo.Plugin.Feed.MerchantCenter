@@ -116,7 +116,12 @@ else
                 ("size", item.Size),
                 ("gender", item.Gender),
                 ("age_group", item.AgeGroup),
-                ("shipping_weight", item.ShippingWeight is > 0 ? $"{item.ShippingWeight:0.###} {item.ShippingWeightUnit}" : null)
+                ("shipping_weight", item.ShippingWeight is > 0 ? $"{item.ShippingWeight:0.###} {item.ShippingWeightUnit}" : null),
+                ("custom_label_0", item.CustomLabels[0]),
+                ("custom_label_1", item.CustomLabels[1]),
+                ("custom_label_2", item.CustomLabels[2]),
+                ("custom_label_3", item.CustomLabels[3]),
+                ("custom_label_4", item.CustomLabels[4])
             };
             <div class="mc-variant @(i == 0 ? "active" : null)" data-variant-panel="@i">
                 <div class="mc-status @(pv.HeldBack ? "bad" : "ok")">
@@ -168,7 +173,7 @@ else
                         <div class="mc-card" style="padding:0;overflow:hidden">
                             <div class="mc-card-title" style="padding:16px 18px 0">@T(P + "Preview.Attributes")</div>
                             <table class="mc-attrs">
-                                @foreach (var (name, value) in rows)
+                                @foreach (var (name, value) in rows.Where(r => !(r.Name.StartsWith("custom_label_") && string.IsNullOrEmpty(r.Value))))
                                 {
                                     <tr class="@(string.IsNullOrEmpty(value) ? "empty" : null) @RowClass(name)">
                                         <td>@name</td>
