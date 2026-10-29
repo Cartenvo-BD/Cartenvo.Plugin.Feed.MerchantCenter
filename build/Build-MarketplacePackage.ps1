@@ -44,7 +44,7 @@ try {
         Copy-Item (Join-Path $repo 'LICENSE') $stage
     }
 
-    $versions = $Trees.Keys | Sort-Object -Descending
+    $versions = @($Trees.Keys | Sort-Object -Descending)
     $revision = ((Get-Content (Join-Path $work "stage\$($versions[0])\$systemName\plugin.json") -Raw | ConvertFrom-Json).Version -split '\.')[-1]
     $zip = Join-Path $dist "$name-release$revision.zip"
     if (Test-Path $zip) { Remove-Item $zip }
