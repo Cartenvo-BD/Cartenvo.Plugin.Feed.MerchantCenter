@@ -317,6 +317,8 @@ public static class MerchantCenterResources
             texts[key] = value;
         foreach (var (key, value) in MerchantCenterStatusResources.Texts())
             texts[key] = value;
+        foreach (var (key, value) in MerchantCenterProInfoResources.Texts())
+            texts[key] = value;
 
         foreach (var (code, title, fix) in Issues)
         {

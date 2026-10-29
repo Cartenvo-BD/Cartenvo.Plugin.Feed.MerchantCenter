@@ -35,6 +35,9 @@ public static class MerchantCenterDefaults
     public const string ServiceAccountsUrl = "https://console.cloud.google.com/iam-admin/serviceaccounts";
     public const string PeopleAndAccessUrl = "https://merchants.google.com/mc/users";
 
+    /// <summary>The paid add-on's page, linked from the Pro tab while Pro isn't installed.</summary>
+    public const string ProUrl = "https://cartenvo.com/plugins/merchant-center-pro?utm_source=plugin&utm_medium=admin&utm_campaign=merchant-center-free";
+
     public const string TaxonomyUrl = "https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt";
 
     /// <summary>Most problem rows kept per feed. The counts on the overview stay exact.</summary>

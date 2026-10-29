@@ -13,6 +13,9 @@ Product status read back from Google.
   ID, including attribute combinations.
 - **Google Merchant Center** panel on the admin product page with the product's status per country and its issues.
 - `MerchantApiClient` can list products and run Merchant Center reports, for extensions such as Merchant Center Pro.
+- **Pro** tab describing the paid Merchant Center Pro add-on, with a link to its page, and a small card on the overview
+  once the Google connection is set up. Both disappear when Pro is installed: its own tab takes their place. Nothing in
+  the free plugin is locked or limited.
 - Fixed: on narrow screens, wide tables no longer stretch two-column pages sideways.
 - Tested against Google itself (connection, registration, data source, product status) and a local stand-in with
   statuses on 4.80 (SQL Server), 4.90 (PostgreSQL, 100,047 products) and 5.00 (SQL Server).

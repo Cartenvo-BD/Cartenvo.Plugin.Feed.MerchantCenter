@@ -21,6 +21,10 @@
             var after = tabs.FindLastIndex(t => t.Key == extra.AfterKey);
             tabs.Insert(after < 0 ? tabs.Count : after + 1, (extra.Key, extra.Controller, extra.Action, extra.Icon, extra.Text));
         }
+    // Until Pro is installed, its tab explains what it adds.
+    var proInfo = tabs.All(t => t.Key != Cartenvo.Plugin.Feed.MerchantCenter.Controllers.ProInfo.TabKey);
+    if (proInfo)
+        tabs.Add(("pro", "MerchantCenterProInfo", "Index", "fas fa-gem", T(P + "Nav.ProInfo").Text));
 
     // The connection tab shows its state: connected, set-up started, or optional.
     var api = await SettingService.LoadSettingAsync<Cartenvo.Plugin.Feed.MerchantCenter.MerchantCenterSettings>();
@@ -53,6 +57,10 @@
                     {
                         <b class="mc-tab-dot @connection" role="img" title="@connectionText" aria-label="@connectionText"></b>
                     }
+                }
+                @if (item.Key == "pro" && proInfo)
+                {
+                    <em class="mc-tab-tag">@T(P + "Nav.ProInfo.Tag")</em>
                 }
             </a>
         }

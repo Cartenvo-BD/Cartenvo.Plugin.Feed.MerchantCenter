@@ -152,7 +152,7 @@ An extension that throws is logged and skipped for the rest of that run, so prod
 ever gain members with default implementations; `ExtensionApi.Version` goes up when they do. Declare the dependency in
 your `plugin.json` with `"DependsOnSystemNames": [ "Feed.CartenvoMerchantCenter" ]`.
 
-[Merchant Center Pro](https://cartenvo.com/plugins/merchant-center) is Cartenvo's paid add-on built this way: Google Ads
+[Merchant Center Pro](https://cartenvo.com/plugins/merchant-center-pro) is Cartenvo's paid add-on built this way: Google Ads
 custom labels, title rules and more.
 
 ## Licence

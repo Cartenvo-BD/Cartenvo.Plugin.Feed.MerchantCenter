@@ -1,0 +1,68 @@
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "ProInfo.Title").Text;
+    ViewData["McTab"] = "pro";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    var features = new[]
+    {
+        ("Labels", "fas fa-tags", "#7c3aed"),
+        ("Titles", "fas fa-heading", "#2563eb"),
+        ("Performance", "fas fa-chart-line", "#16a34a"),
+        ("Prices", "fas fa-balance-scale", "#ea580c")
+    };
+    var rows = new[] { ("Feed", true), ("Checks", true), ("Status", true), ("Labels", false), ("Titles", false), ("Performance", false) };
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+<section class="mc-pro-hero">
+    <div>
+        <h2><i class="fas fa-gem"></i> @T(P + "ProInfo.Title")</h2>
+        <p>@T(P + "ProInfo.Intro")</p>
+        <p class="mc-pro-free"><i class="fas fa-check-circle"></i> @T(P + "ProInfo.Free")</p>
+    </div>
+    <div class="mc-pro-cta">
+        <a href="@MerchantCenterDefaults.ProUrl" target="_blank" rel="noopener" class="mc-btn lg">@T(P + "ProInfo.Buy") <i class="fas fa-external-link-alt"></i></a>
+        <span>@T(P + "ProInfo.Try")</span>
+    </div>
+</section>
+
+<div class="mc-pro-features">
+    @foreach (var (key, icon, colour) in features)
+    {
+        <div class="mc-card">
+            <h3><i class="@icon" style="color:@colour"></i> @T(P + "ProInfo." + key)</h3>
+            <p>@T(P + "ProInfo." + key + ".Text")</p>
+            <code class="mc-pro-example">@T(P + "ProInfo." + key + ".Example")</code>
+        </div>
+    }
+</div>
+
+<div class="mc-card">
+    <h3><i class="fas fa-columns" style="color:#2563eb"></i> @T(P + "ProInfo.Compare")</h3>
+    <div class="mc-table-wrap">
+        <table class="mc-table mc-pro-compare">
+            <thead>
+                <tr>
+                    <th>@T(P + "ProInfo.Compare.Feature")</th>
+                    <th>@T(P + "ProInfo.Compare.Free")</th>
+                    <th>@T(P + "ProInfo.Compare.Pro")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var (key, free) in rows)
+                {
+                    <tr>
+                        <td>@T(P + "ProInfo.Compare." + key)</td>
+                        <td>@if (free) { <i class="fas fa-check" style="color:#16a34a" aria-label="@T(P + "ProInfo.Compare.Free")"></i> } else { <span class="muted">–</span> }</td>
+                        <td><i class="fas fa-check" style="color:#16a34a" aria-label="@T(P + "ProInfo.Compare.Pro")"></i></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="muted small mt-3 mb-0">@T(P + "ProInfo.Later")</p>
+</div>
+</div>

@@ -1,4 +1,5 @@
 @model OverviewModel
+@inject IEnumerable<Cartenvo.Plugin.Feed.MerchantCenter.Extensibility.IAdminTabProvider> TabProviders
 @{
     Layout = "_AdminLayout";
     const string P = MerchantCenterDefaults.ResourcePrefix;
@@ -313,6 +314,14 @@ else
                     <i class="fas fa-chevron-right"></i>
                 </a>
             }
+            else if (!await ProInstalledAsync())
+            {
+                <a class="mc-promo" asp-controller="MerchantCenterProInfo" asp-action="Index">
+                    <span class="mc-sync-icon" style="background:linear-gradient(135deg,#7c3aed,#2563eb);box-shadow:0 3px 10px rgba(109,40,217,.3)"><i class="fas fa-gem"></i></span>
+                    <span><b>@T(P + "Overview.ProPromo.Title")</b><span>@T(P + "Overview.ProPromo.Text")</span></span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            }
 
             <div class="mc-card">
                 <h3><i class="fas fa-clipboard-check" style="color:#2563eb"></i> @T(P + "Problems.Title")</h3>
@@ -376,3 +385,14 @@ else
         <text>window.addEventListener('load', () => document.getElementById('build-@Model.AutoBuildFeedId')?.click());</text>
     }
 </script>
+
+@functions {
+    // Pro supplies the "pro" tab when it's installed.
+    private async Task<bool> ProInstalledAsync()
+    {
+        foreach (var provider in TabProviders)
+            if ((await provider.GetTabsAsync()).Any(t => t.Key == Cartenvo.Plugin.Feed.MerchantCenter.Controllers.ProInfo.TabKey))
+                return true;
+        return false;
+    }
+}
