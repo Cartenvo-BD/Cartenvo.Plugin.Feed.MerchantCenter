@@ -1,0 +1,175 @@
+@model IssuesModel
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "Nav.Issues").Text;
+    ViewData["McTab"] = "issues";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    var total = Model.Counts.Values.Sum();
+    string Tone(IssueSeverity s) => s == IssueSeverity.Error ? "error" : s == IssueSeverity.Warning ? "warning" : "info";
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+@if (Model.Feeds.Count == 0)
+{
+    <div class="mc-card mc-empty">
+        <div class="icon muted"><i class="fas fa-rss"></i></div>
+        <h3>@T(P + "Nav.Issues")</h3>
+        <p>@T(P + "Issues.NoFeed")</p>
+        <a asp-action="Configure" class="mc-btn primary"><i class="fas fa-plus"></i> @T(P + "QuickStart.Create")</a>
+    </div>
+}
+else
+{
+    <p class="mc-intro">@T(P + "Issues.Intro")</p>
+
+    <form method="get" asp-action="Issues" class="mc-toolbar">
+        @if (Model.Feeds.Count > 1)
+        {
+            <select name="feedId" class="mc-input" style="max-width:240px" onchange="this.form.submit()" aria-label="@T(P + "Issues.Feed")">
+                @foreach (var card in Model.Feeds) { <option value="@card.Feed.Id" selected="@(card.Feed.Id == Model.FeedId)">@card.Feed.Name</option> }
+            </select>
+        }
+        else
+        {
+            <input type="hidden" name="feedId" value="@Model.FeedId" />
+        }
+        @if (!string.IsNullOrEmpty(Model.Code)) { <input type="hidden" name="code" value="@Model.Code" /> }
+        @if (Model.ShowExcluded) { <input type="hidden" name="excluded" value="true" /> }
+        <div class="mc-search" style="flex:1 1 260px;max-width:340px">
+            <i class="fas fa-search"></i>
+            <input type="search" name="q" value="@Model.Search" class="mc-input" placeholder="@T(P + "Issues.Search")" />
+        </div>
+        <span class="mc-spacer"></span>
+        <button type="button" class="mc-btn" data-mc-build="@Model.FeedId" data-mc-progress="#issues-progress"><i class="fas fa-sync-alt"></i> @T(P + "Feed.Generate")</button>
+    </form>
+    <div class="mc-progress mb-3" id="issues-progress">
+        <div class="track"><div class="fill"></div></div>
+        <div class="text"><span class="label"></span><span class="counts"></span></div>
+    </div>
+
+    <div class="mc-chips">
+        <a class="mc-chip @(string.IsNullOrEmpty(Model.Code) && !Model.ShowExcluded ? "active" : null)" asp-action="Issues" asp-route-feedId="@Model.FeedId">@T(P + "Issues.All") <b>@total.ToString("N0")</b></a>
+        @foreach (var code in IssueCodes.All.Where(Model.Counts.ContainsKey))
+        {
+            <a class="mc-chip @(Model.Code == code ? "active" : null)" asp-action="Issues" asp-route-feedId="@Model.FeedId" asp-route-code="@code">
+                <span class="dot @Tone(IssueCodes.Severity[code])"></span>@T(P + "Issue." + code) <b>@Model.Counts[code].ToString("N0")</b>
+            </a>
+        }
+        @if (Model.ExcludedCount > 0)
+        {
+            <a class="mc-chip @(Model.ShowExcluded ? "active" : null)" asp-action="Issues" asp-route-feedId="@Model.FeedId" asp-route-excluded="true">
+                <span class="dot muted"></span>@T(P + "Issues.ExcludedFilter") <b>@Model.ExcludedCount</b>
+            </a>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Code) && IssueCodes.Severity.TryGetValue(Model.Code, out var selectedSeverity))
+    {
+        <div class="mc-callout @(selectedSeverity == IssueSeverity.Error ? "error" : "warning")">
+            <i class="fas @(selectedSeverity == IssueSeverity.Error ? "fa-ban" : "fa-exclamation-triangle")"></i>
+            <div><b>@T(P + "Issue." + Model.Code)</b>@T(P + "Issue." + Model.Code + ".Fix")</div>
+        </div>
+    }
+    @if (Model.Truncated)
+    {
+        <div class="mc-callout info"><i class="fas fa-info-circle"></i><div>@string.Format(T(P + "Issues.Truncated").Text, MerchantCenterDefaults.MaxStoredIssues.ToString("N0"))</div></div>
+    }
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="mc-card mc-empty">
+            <div class="icon"><i class="fas fa-check"></i></div>
+            <h3>@T(P + "Issues.Empty")</h3>
+            <p>@T(P + "Issues.Empty.Hint")</p>
+        </div>
+    }
+    else
+    {
+        <div class="mc-table-wrap">
+            <table class="mc-table">
+                <thead>
+                    <tr>
+                        <th>@T(P + "Issues.Product")</th>
+                        <th>@T(P + "Issues.Problems")</th>
+                        <th style="width:1%"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr class="@(row.Excluded ? "mc-excluded" : null)" data-row="@row.ProductId">
+                            <td>
+                                <div class="mc-product">
+                                    <img class="mc-thumb" src="@row.ImageUrl" alt="" loading="lazy" />
+                                    <div>
+                                        <b>@row.Name</b>
+                                        <span>@(string.IsNullOrEmpty(row.Sku) ? "#" + row.ProductId : row.Sku)</span>
+                                        @if (row.Excluded) { <span class="mc-pill muted nodot ml-1">@T(P + "Issues.Excluded")</span> }
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                @if (row.Problems.Count == 0 && row.Excluded)
+                                {
+                                    <span class="muted small">@T(P + "Preview.Excluded")</span>
+                                }
+                                @foreach (var problem in row.Problems)
+                                {
+                                    <div class="mc-issue">
+                                        <span class="mc-pill @Tone(problem.Severity)">@T(P + "Severity." + problem.Severity)</span>
+                                        <details>
+                                            <summary>@T(P + "Issue." + problem.Code)@if (row.Problems.Count(p => p.Code == problem.Code) == 1 && problem.OfferId != row.Sku && !string.IsNullOrEmpty(problem.OfferId)) {<span class="muted small mono"> · @problem.OfferId</span>}</summary>
+                                            <p><b>@T(P + "Issues.HowToFix"):</b> @T(P + "Issue." + problem.Code + ".Fix")</p>
+                                        </details>
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                <div class="mc-actions" style="flex-wrap:nowrap">
+                                    <a class="mc-btn sm primary" href="@Url.Content("~/Admin/Product/Edit/" + row.ProductId)" target="_blank" rel="noopener"><i class="fas fa-pen"></i> @T(P + "Issues.Edit")</a>
+                                    <a class="mc-btn sm" asp-action="Preview" asp-route-feedId="@Model.FeedId" asp-route-productId="@row.ProductId" title="@T(P + "Issues.Preview")"><i class="far fa-eye"></i></a>
+                                    <button type="button" class="mc-btn sm ghost" data-mc-exclude="@row.ProductId" data-excluded="@(row.Excluded ? "true" : "false")">
+                                        @(row.Excluded ? T(P + "Issues.Include") : T(P + "Issues.Exclude"))
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="mc-pager">
+            <span>@string.Format(T(P + "Issues.Shown").Text, Model.TotalProducts.ToString("N0"))</span>
+            @if (Model.TotalPages > 1)
+            {
+                <a class="mc-btn sm @(Model.Page <= 1 ? "disabled" : null)" asp-action="Issues" asp-route-feedId="@Model.FeedId" asp-route-code="@Model.Code" asp-route-q="@Model.Search" asp-route-excluded="@Model.ShowExcluded" asp-route-page="@(Math.Max(1, Model.Page - 1))"><i class="fas fa-chevron-left"></i> @T(P + "Issues.Prev")</a>
+                <span>@Model.Page / @Model.TotalPages</span>
+                <a class="mc-btn sm @(Model.Page >= Model.TotalPages ? "disabled" : null)" asp-action="Issues" asp-route-feedId="@Model.FeedId" asp-route-code="@Model.Code" asp-route-q="@Model.Search" asp-route-excluded="@Model.ShowExcluded" asp-route-page="@(Math.Min(Model.TotalPages, Model.Page + 1))">@T(P + "Issues.Next") <i class="fas fa-chevron-right"></i></a>
+            }
+        </div>
+        <p class="muted small mt-3"><i class="fas fa-info-circle"></i> @T(P + "Issues.Rebuild")</p>
+    }
+}
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />
+<script>
+    const excludeText = { exclude: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Issues.Exclude").Text)), include: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Issues.Include").Text)), saved: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Saved").Text)) };
+    document.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-mc-exclude]');
+        if (!button) return;
+        const exclude = button.dataset.excluded !== 'true';
+        button.disabled = true;
+        try {
+            await mc.post('@Url.Action("Exclude", "MerchantCenter")', { productId: button.dataset.mcExclude, exclude });
+            button.dataset.excluded = exclude ? 'true' : 'false';
+            button.textContent = exclude ? excludeText.include : excludeText.exclude;
+            button.closest('tr').classList.toggle('mc-excluded', exclude);
+            mc.toast(excludeText.saved);
+        } catch { mc.toast(mc.text.failed, false); }
+        button.disabled = false;
+    });
+</script>

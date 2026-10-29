@@ -1,0 +1,225 @@
+@model FeedEditModel
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + (Model.Id == 0 ? "FeedEdit.New" : "FeedEdit.Edit")).Text;
+    ViewData["McTab"] = "overview";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    var selected = Model.SelectedCategoryIds.ToHashSet();
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+<form asp-action="Feed" method="post" id="feed-form">
+    <input type="hidden" asp-for="Id" />
+    <div class="mc-toolbar">
+        <a asp-action="Configure" class="mc-btn ghost"><i class="fas fa-arrow-left"></i> @T(P + "FeedEdit.Back")</a>
+        <h2 class="m-0" style="font-size:1.3rem;font-weight:700">@T(P + (Model.Id == 0 ? "FeedEdit.New" : "FeedEdit.Edit"))</h2>
+        <span class="mc-spacer"></span>
+        <button type="submit" class="mc-btn"><i class="far fa-save"></i> @T(P + "FeedEdit.Save")</button>
+        <button type="submit" name="build" value="true" class="mc-btn primary"><i class="fas fa-sync-alt"></i> @T(P + (Model.SyncMode == 1 ? "FeedEdit.SaveSync" : "FeedEdit.SaveBuild"))</button>
+    </div>
+
+    <div class="mc-grid two">
+        <div>
+            <div class="mc-card">
+                <div class="mc-section">
+                    <h4>@T(P + "FeedEdit.How")</h4>
+                    <div class="mc-choices mc-row" style="gap:10px">
+                        <label class="mc-choice">
+                            <input type="radio" name="SyncMode" value="0" checked="@(Model.SyncMode == 0)" data-mc-mode />
+                            <span><b><i class="far fa-file-code" style="color:#2563eb"></i> @T(P + "Mode.File")</b><span>@T(P + "Mode.File.Hint")</span></span>
+                        </label>
+                        <label class="mc-choice @(Model.ApiConnected ? null : "disabled")">
+                            <input type="radio" name="SyncMode" value="1" checked="@(Model.SyncMode == 1)" disabled="@(!Model.ApiConnected)" data-mc-mode />
+                            <span><b><i class="fas fa-bolt" style="color:#f59e0b"></i> @T(P + "Mode.Api")</b><span>@T(P + "Mode.Api.Hint")</span>
+                                @if (!Model.ApiConnected)
+                                {
+                                    <a class="mc-choice-link" asp-controller="MerchantCenterSync" asp-action="Connection"><i class="fas fa-plug"></i> @T(P + "Mode.Api.SetUp")</a>
+                                }
+                                else
+                                {
+                                    <span class="mc-choice-meta"><i class="fas fa-check-circle" style="color:#16a34a"></i> @string.Format(T(P + "Mode.Api.Account").Text, Model.ApiAccountName)</span>
+                                }
+                            </span>
+                        </label>
+                    </div>
+                    <div class="mc-callout warning mt-3" data-show-for="1" hidden>
+                        <i class="fas fa-exclamation-triangle"></i><div>@T(P + "Mode.ToApi.Warning")</div>
+                    </div>
+                    <div class="mc-callout info mt-3" data-show-for="0" hidden>
+                        <i class="fas fa-info-circle"></i><div>@T(P + "Mode.ToFile.Info")</div>
+                    </div>
+                </div>
+
+                <div class="mc-section">
+                    <h4>@T(P + "FeedEdit.Where")</h4>
+                    <div class="mc-field">
+                        <label for="Name">@T(P + "Field.Name")</label>
+                        <input asp-for="Name" class="mc-input" maxlength="200" data-mc-summary="name" />
+                    </div>
+                    <div class="mc-row">
+                        <div class="mc-field">
+                            <label for="CountryCode">@T(P + "Field.Country")</label>
+                            <select asp-for="CountryCode" class="mc-input" data-mc-country data-mc-summary="country">
+                                @foreach (var o in Model.Countries) { <option value="@o.Value" selected="@(o.Value == Model.CountryCode)">@o.Text</option> }
+                            </select>
+                            <div class="hint">@T(P + "Field.Country.Hint")</div>
+                        </div>
+                        <div class="mc-field">
+                            <label for="LanguageId">@T(P + "Field.Language")</label>
+                            <select asp-for="LanguageId" class="mc-input" data-mc-summary="language">
+                                @foreach (var o in Model.Languages) { <option value="@o.Value" selected="@(o.Value == Model.LanguageId.ToString())">@o.Text</option> }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mc-row">
+                        <div class="mc-field">
+                            <label for="CurrencyId">@T(P + "Field.Currency")</label>
+                            <select asp-for="CurrencyId" class="mc-input" data-mc-summary="currency">
+                                @foreach (var o in Model.Currencies) { <option value="@o.Value" selected="@(o.Value == Model.CurrencyId.ToString())">@o.Text</option> }
+                            </select>
+                            <div class="hint">@string.Format(T(P + "Field.Currency.Hint").Text, Model.PrimaryCurrencyCode)</div>
+                        </div>
+                        @if (Model.Stores.Count > 1)
+                        {
+                            <div class="mc-field">
+                                <label for="StoreId">@T(P + "Field.Store")</label>
+                                <select asp-for="StoreId" class="mc-input">
+                                    @foreach (var o in Model.Stores) { <option value="@o.Value" selected="@(o.Value == Model.StoreId.ToString())">@o.Text</option> }
+                                </select>
+                            </div>
+                        }
+                        else
+                        {
+                            <input type="hidden" asp-for="StoreId" />
+                        }
+                    </div>
+                    <label class="mc-switch">
+                        <input type="checkbox" name="PricesIncludeTax" value="true" checked="@Model.PricesIncludeTax" data-mc-tax />
+                        <span class="track"></span>
+                        <span><b>@T(P + "Field.PricesIncludeTax")</b><span class="hint">@T(P + "Field.PricesIncludeTax.Hint")</span></span>
+                    </label>
+                </div>
+
+                <div class="mc-section">
+                    <h4>@T(P + "FeedEdit.Which")</h4>
+                    <div class="mc-label">@T(P + "Field.Categories")</div>
+                    <div class="mc-choices mc-row" style="gap:10px">
+                        <label class="mc-choice">
+                            <input type="radio" name="AllCategories" value="true" checked="@Model.AllCategories" data-mc-catmode />
+                            <span><b>@T(P + "Field.Categories.All")</b></span>
+                        </label>
+                        <label class="mc-choice">
+                            <input type="radio" name="AllCategories" value="false" checked="@(!Model.AllCategories)" data-mc-catmode />
+                            <span><b>@T(P + "Field.Categories.Selected")</b><span>@T(P + "Field.Categories.Hint")</span></span>
+                        </label>
+                    </div>
+                    <div id="cat-picker" style="@(Model.AllCategories ? "display:none" : null)">
+                        <div class="mc-search mt-3"><i class="fas fa-search"></i><input type="search" class="mc-input" placeholder="@T(P + "Field.Categories.Search")" data-mc-catfilter /></div>
+                        <div class="mc-cats">
+                            @foreach (var category in Model.Categories)
+                            {
+                                <label style="padding-left:@(8 + category.Depth * 20)px" data-name="@category.Path.ToLowerInvariant()">
+                                    <input type="checkbox" name="SelectedCategoryIds" value="@category.Id" checked="@selected.Contains(category.Id)" />
+                                    @category.Name
+                                </label>
+                            }
+                        </div>
+                    </div>
+                    <div class="mc-row mt-3">
+                        <div class="mc-field">
+                            <label for="MinPrice">@T(P + "Field.MinPrice")</label>
+                            <input asp-for="MinPrice" type="number" min="0" step="0.01" class="mc-input" />
+                            <div class="hint">@string.Format(T(P + "Field.MinPrice.Hint").Text, Model.PrimaryCurrencyCode)</div>
+                        </div>
+                    </div>
+                    <label class="mc-switch">
+                        <input type="checkbox" name="OnlyInStock" value="true" checked="@Model.OnlyInStock" />
+                        <span class="track"></span>
+                        <span><b>@T(P + "Field.OnlyInStock")</b><span class="hint">@T(P + "Field.OnlyInStock.Hint")</span></span>
+                    </label>
+                </div>
+
+                <div class="mc-section">
+                    <h4>@T(P + "FeedEdit.Updates")</h4>
+                    <label class="mc-switch mb-0">
+                        <input type="checkbox" name="Enabled" value="true" checked="@Model.Enabled" />
+                        <span class="track"></span>
+                        <span><b>@T(P + "Field.Enabled")</b><span class="hint">@T(P + "Field.Enabled.Hint")</span></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="mc-card mc-sticky">
+                <h3><i class="far fa-file-alt" style="color:#2563eb"></i> @T(P + "FeedEdit.Summary")</h3>
+                <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px">
+                    <img class="mc-flag" id="sum-flag" src="@Url.Content(ViewHelpers.FlagImage(Model.CountryCode))" alt="" data-base="@Url.Content("~/images/flags/")" />
+                    <div>
+                        <b id="sum-name" style="font-size:1.05rem;color:#0f172a">@Model.Name</b>
+                        <div class="muted small"><span id="sum-language"></span> · <span id="sum-currency"></span></div>
+                    </div>
+                </div>
+                @if (Model.SyncMode == 1)
+                {
+                    <div class="mc-callout ok mb-3"><i class="fas fa-bolt"></i><div>@T(P + "FeedEdit.ApiSummary")</div></div>
+                }
+                else if (!string.IsNullOrEmpty(Model.Url))
+                {
+                    <div class="mc-label">@T(P + "Feed.Url")</div>
+                    <div class="mc-url mb-3">
+                        <input id="edit-url" value="@Model.Url" readonly onclick="this.select()" aria-label="@T(P + "Feed.Url")" />
+                        <button type="button" data-mc-copy="#edit-url"><i class="far fa-copy"></i> @T(P + "Feed.Copy")</button>
+                    </div>
+                }
+                else
+                {
+                    <p class="muted small"><i class="fas fa-link"></i> @T(P + "FeedEdit.UrlLater")</p>
+                }
+                <div class="mc-callout info mb-0"><i class="far fa-lightbulb"></i><div>@T(P + "FeedEdit.Tip")</div></div>
+            </div>
+        </div>
+    </div>
+</form>
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />
+<script>
+(function () {
+    const form = document.getElementById('feed-form');
+        const country = form.querySelector('[data-mc-country]');
+    const name = form.querySelector('[data-mc-summary="name"]');
+    let nameTouched = !!name.value && name.value !== country.selectedOptions[0]?.text.trim();
+    name.addEventListener('input', () => { nameTouched = true; refresh(); });
+    function refresh() {
+        const flagImg = document.getElementById('sum-flag'); flagImg.style.visibility = ''; flagImg.src = flagImg.dataset.base + country.value.toLowerCase() + '.png';
+        document.getElementById('sum-name').textContent = name.value || country.selectedOptions[0]?.text.trim();
+        document.getElementById('sum-language').textContent = form.querySelector('[data-mc-summary="language"]').selectedOptions[0]?.text ?? '';
+        document.getElementById('sum-currency').textContent = (form.querySelector('[data-mc-summary="currency"]').selectedOptions[0]?.text.match(/\((\w+)\)$/) || [])[1] ?? '';
+    }
+    country.addEventListener('change', () => {
+        form.querySelector('[data-mc-tax]').checked = !['US', 'CA'].includes(country.value);
+        if (!nameTouched) name.value = country.selectedOptions[0]?.text.trim();
+        refresh();
+    });
+    form.querySelectorAll('select').forEach(s => s.addEventListener('change', refresh));
+    // Explain what switching between a feed file and automatic sync means, only when it changes.
+    const savedMode = '@Model.SyncMode';
+    const isExisting = @(Model.Id > 0 ? "true" : "false");
+    form.querySelectorAll('[data-mc-mode]').forEach(r => r.addEventListener('change', () => {
+        const mode = form.querySelector('[data-mc-mode]:checked').value;
+        form.querySelectorAll('[data-show-for]').forEach(box => box.hidden = !isExisting || mode === savedMode || box.dataset.showFor !== mode);
+    }));
+    form.querySelectorAll('[data-mc-catmode]').forEach(r => r.addEventListener('change', () => {
+        document.getElementById('cat-picker').style.display = form.querySelector('[data-mc-catmode]:checked').value === 'false' ? '' : 'none';
+    }));
+    form.querySelector('[data-mc-catfilter]')?.addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        form.querySelectorAll('.mc-cats label').forEach(l => l.style.display = !q || l.dataset.name.includes(q) ? '' : 'none');
+    });
+    refresh();
+})();
+</script>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Merchant Center Feed logo source. logo.png (120 x 120, what nopCommerce shows) is rendered from this file. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="116" fill="url(#bg)"/>
+  <!-- Shopping bag -->
+  <path d="M120 196H344L326 412H138Z" fill="#ffffff"/>
+  <path d="M176 220V170C176 134 202 108 232 108C262 108 288 134 288 170V220" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="176" cy="232" r="14" fill="#1d4ed8"/>
+  <circle cx="288" cy="232" r="14" fill="#1d4ed8"/>
+  <!-- Feed signal -->
+  <circle cx="372" cy="356" r="22" fill="#facc15"/>
+  <path d="M372 286A70 70 0 0 1 442 356" fill="none" stroke="#facc15" stroke-width="26" stroke-linecap="round"/>
+</svg>

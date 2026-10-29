@@ -1,0 +1,11 @@
+{
+  "Group": "Promotion feeds",
+  "FriendlyName": "Merchant Center Feed for Google",
+  "SystemName": "Feed.CartenvoMerchantCenter",
+  "Version": "{PluginVersion}",
+  "SupportedVersions": [ "{NopVersion}" ],
+  "Author": "Cartenvo",
+  "DisplayOrder": 1,
+  "FileName": "Cartenvo.Plugin.Feed.MerchantCenter.dll",
+  "Description": "Free Google Merchant Center product feed: one-click setup, category mapping with suggestions, checks that hold back products Google would reject, variants, sale prices and a preview of every product."
+}

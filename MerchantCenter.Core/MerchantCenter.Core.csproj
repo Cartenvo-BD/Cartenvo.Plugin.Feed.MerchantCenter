@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Feed logic with no nopCommerce dependency: items, checks, XML output, GTINs and the Google taxonomy. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Cartenvo.MerchantCenter.Core</RootNamespace>
+  </PropertyGroup>
+</Project>

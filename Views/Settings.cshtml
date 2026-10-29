@@ -1,0 +1,136 @@
+@model SettingsModel
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "Nav.Settings").Text;
+    ViewData["McTab"] = "settings";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+<form asp-action="Settings" method="post">
+    <div class="mc-grid halves">
+        <div>
+            <div class="mc-card">
+                <h3><i class="fas fa-fingerprint" style="color:#2563eb"></i> @T(P + "Settings.Ids")</h3>
+                <p class="muted small">@T(P + "Settings.Ids.Hint")</p>
+                <div class="mc-choices">
+                    @foreach (var source in new[] { 0, 1, 2 })
+                    {
+                        <label class="mc-choice">
+                            <input type="radio" name="OfferIdSource" value="@source" checked="@(Model.OfferIdSource == source)" />
+                            <span><b>@T(P + "Settings.Ids." + source)</b><span>@T(P + "Settings.Ids." + source + ".Hint")</span></span>
+                        </label>
+                    }
+                </div>
+                <div class="mc-callout info mt-3 mb-0"><i class="fas fa-exchange-alt"></i><div>@T(P + "Settings.Ids.Migrating")</div></div>
+            </div>
+
+            <div class="mc-card">
+                <h3><i class="fas fa-barcode" style="color:#2563eb"></i> @T(P + "Settings.Brand")</h3>
+                <div class="mc-field">
+                    <label for="DefaultBrand">@T(P + "Settings.DefaultBrand")</label>
+                    <input asp-for="DefaultBrand" class="mc-input" maxlength="70" />
+                    <div class="hint">@T(P + "Settings.DefaultBrand.Hint")</div>
+                </div>
+                <label class="mc-switch mb-0">
+                    <input type="checkbox" name="NoIdentifiersMeansCustom" value="true" checked="@Model.NoIdentifiersMeansCustom" />
+                    <span class="track"></span>
+                    <span><b>@T(P + "Settings.Custom")</b><span class="hint">@T(P + "Settings.Custom.Hint")</span></span>
+                </label>
+            </div>
+
+            <div class="mc-card">
+                <h3><i class="fas fa-layer-group" style="color:#2563eb"></i> @T(P + "Settings.Variants")</h3>
+                <label class="mc-switch">
+                    <input type="checkbox" name="SplitCombinations" value="true" checked="@Model.SplitCombinations" />
+                    <span class="track"></span>
+                    <span><b>@T(P + "Settings.Split")</b><span class="hint">@T(P + "Settings.Split.Hint")</span></span>
+                </label>
+                <div class="mc-row">
+                    <div class="mc-field">
+                        <label for="ColorAttributeNames">@T(P + "Settings.Color")</label>
+                        <input asp-for="ColorAttributeNames" class="mc-input" />
+                    </div>
+                    <div class="mc-field">
+                        <label for="SizeAttributeNames">@T(P + "Settings.Size")</label>
+                        <input asp-for="SizeAttributeNames" class="mc-input" />
+                    </div>
+                </div>
+                <div class="hint" style="margin-top:-8px">@T(P + "Settings.Names.Hint")</div>
+            </div>
+        </div>
+
+        <div>
+            <div class="mc-card">
+                <h3><i class="far fa-images" style="color:#2563eb"></i> @T(P + "Settings.Content")</h3>
+                <label class="mc-switch">
+                    <input type="checkbox" name="UseShortDescriptionFallback" value="true" checked="@Model.UseShortDescriptionFallback" />
+                    <span class="track"></span>
+                    <span><b>@T(P + "Settings.ShortFallback")</b></span>
+                </label>
+                <div class="mc-row">
+                    <div class="mc-field">
+                        <label for="PictureSize">@T(P + "Settings.PictureSize")</label>
+                        <input asp-for="PictureSize" type="number" min="100" max="4000" step="50" class="mc-input" />
+                        <div class="hint">@T(P + "Settings.PictureSize.Hint")</div>
+                    </div>
+                    <div class="mc-field">
+                        <label for="MaxAdditionalImages">@T(P + "Settings.MaxImages")</label>
+                        <input asp-for="MaxAdditionalImages" type="number" min="0" max="10" class="mc-input" />
+                        <div class="hint">@T(P + "Settings.MaxImages.Hint")</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mc-card">
+                <h3><i class="fas fa-tshirt" style="color:#2563eb"></i> @T(P + "Settings.Apparel")</h3>
+                <p class="muted small">@T(P + "Settings.Apparel.Hint")</p>
+                <div class="mc-row">
+                    <div class="mc-field">
+                        <label for="DefaultGender">@T(P + "Settings.Gender")</label>
+                        <select asp-for="DefaultGender" class="mc-input">
+                            <option value="">@T(P + "Settings.NotSent")</option>
+                            @foreach (var g in new[] { "male", "female", "unisex" }) { <option value="@g" selected="@(Model.DefaultGender == g)">@g</option> }
+                        </select>
+                    </div>
+                    <div class="mc-field">
+                        <label for="DefaultAgeGroup">@T(P + "Settings.AgeGroup")</label>
+                        <select asp-for="DefaultAgeGroup" class="mc-input">
+                            <option value="">@T(P + "Settings.NotSent")</option>
+                            @foreach (var a in new[] { "adult", "kids", "toddler", "infant", "newborn" }) { <option value="@a" selected="@(Model.DefaultAgeGroup == a)">@a</option> }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mc-card">
+                <h3><i class="fas fa-truck" style="color:#2563eb"></i> @T(P + "Settings.Shipping")</h3>
+                <label class="mc-switch mb-0">
+                    <input type="checkbox" name="IncludeShippingWeight" value="true" checked="@Model.IncludeShippingWeight" />
+                    <span class="track"></span>
+                    <span><b>@T(P + "Settings.Weight")</b><span class="hint">@T(P + "Settings.Weight.Hint")</span></span>
+                </label>
+            </div>
+
+            <div class="mc-card">
+                <h3><i class="far fa-clock" style="color:#2563eb"></i> @T(P + "Settings.Schedule")</h3>
+                <div class="mc-field mb-0">
+                    <label for="RegenerateEveryHours">@T(P + "Settings.Every")</label>
+                    <select asp-for="RegenerateEveryHours" class="mc-input" style="max-width:220px">
+                        @foreach (var h in new[] { 1, 2, 3, 6, 12, 24 }) { <option value="@h" selected="@(Model.RegenerateEveryHours == h)">@string.Format(T(P + "Settings.Hours").Text, h)</option> }
+                    </select>
+                    <div class="hint">@T(P + "Settings.Every.Hint")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mc-actions" style="position:sticky;bottom:0;background:linear-gradient(transparent,#f4f6f9 30%);padding:16px 0">
+        <button type="submit" class="mc-btn primary lg"><i class="far fa-save"></i> @T(P + "Settings.Save")</button>
+    </div>
+</form>
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />

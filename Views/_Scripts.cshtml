@@ -1,0 +1,143 @@
+@{
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+}
+<div class="mc-toasts" id="mc-toasts" aria-live="polite"></div>
+<form id="mc-token" class="d-none">@Html.AntiForgeryToken()</form>
+<script>
+(function () {
+    const text = {
+        copied: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Feed.Copied").Text)),
+        copy: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Feed.Copy").Text)),
+        building: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Feed.Generating").Text)),
+        progress: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Feed.Progress").Text)),
+        starting: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Feed.Starting").Text)),
+        failed: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Failed").Text))
+    };
+    const urls = {
+        generate: '@Url.Action("Generate", "MerchantCenter")',
+        progress: '@Url.Action("Progress", "MerchantCenter")'
+    };
+
+    const mc = window.mc = {
+        text,
+        token() { return document.querySelector('#mc-token input[name="__RequestVerificationToken"]').value; },
+        async post(url, data) {
+            const body = new FormData();
+            body.append('__RequestVerificationToken', mc.token());
+            Object.entries(data || {}).forEach(([k, v]) => body.append(k, v));
+            const response = await fetch(url, { method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) throw new Error(response.status);
+            return response.json();
+        },
+        async get(url) {
+            const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) throw new Error(response.status);
+            return response.json();
+        },
+        toast(message, ok = true) {
+            const el = document.createElement('div');
+            el.className = 'mc-toast ' + (ok ? 'ok' : 'bad');
+            el.innerHTML = '<i class="fas ' + (ok ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i><span></span>';
+            el.querySelector('span').textContent = message;
+            document.getElementById('mc-toasts').appendChild(el);
+            setTimeout(() => el.remove(), 5000);
+        },
+        format(template, ...values) { return template.replace(/\{(\d)\}/g, (_, i) => values[i] ?? ''); },
+        number(n) { return Number(n || 0).toLocaleString(); },
+        escape(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; },
+        debounce(fn, ms = 200) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; }
+    };
+
+    // Copy buttons: data-mc-copy="#inputId"
+    document.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-mc-copy]');
+        if (!button) return;
+        const source = document.querySelector(button.dataset.mcCopy);
+        const value = source ? (source.value ?? source.textContent) : '';
+        try { await navigator.clipboard.writeText(value); }
+        catch { if (source && source.select) { source.select(); document.execCommand('copy'); } }
+        const label = button.innerHTML;
+        button.classList.add('copied');
+        button.innerHTML = '<i class="fas fa-check"></i> ' + text.copied;
+        setTimeout(() => { button.classList.remove('copied'); button.innerHTML = label; }, 1800);
+    });
+
+    // Modals: data-mc-open="#id", data-mc-close
+    document.addEventListener('click', (event) => {
+        const opener = event.target.closest('[data-mc-open]');
+        if (opener) { event.preventDefault(); document.querySelector(opener.dataset.mcOpen)?.classList.add('on'); return; }
+        if (event.target.closest('[data-mc-close]') || event.target.classList.contains('mc-modal')) {
+            event.target.closest('.mc-modal')?.classList.remove('on');
+        }
+        // Dropdown menus: data-mc-toggle="#menuId"
+        const toggle = event.target.closest('[data-mc-toggle]');
+        document.querySelectorAll('.mc-dropdown .mc-menu.on').forEach(menu => {
+            if (!toggle || menu !== document.querySelector(toggle.dataset.mcToggle)) menu.classList.remove('on');
+        });
+        if (toggle) { event.preventDefault(); document.querySelector(toggle.dataset.mcToggle)?.classList.toggle('on'); }
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') document.querySelectorAll('.mc-modal.on').forEach(m => m.classList.remove('on'));
+    });
+
+    // Confirm before submitting: <form data-mc-confirm="...">
+    document.addEventListener('submit', (event) => {
+        const form = event.target.closest('form[data-mc-confirm]');
+        if (form && !confirm(form.dataset.mcConfirm)) event.preventDefault();
+    });
+
+    // Build a feed with live progress: <button data-mc-build="feedId" data-mc-progress="#progressId">
+    mc.build = async function (feedId, progressSelector, button) {
+        const box = document.querySelector(progressSelector);
+        const fill = box?.querySelector('.fill');
+        const label = box?.querySelector('.label');
+        const counts = box?.querySelector('.counts');
+        if (button) { button.disabled = true; button.dataset.label = button.innerHTML; button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + text.building; }
+        if (box) { box.classList.add('on'); fill.classList.add('indeterminate'); label.textContent = text.starting; counts.textContent = ''; }
+        let done = false;
+        const poll = async () => {
+            if (done) return;
+            try {
+                const p = await mc.get(urls.progress + '?id=' + feedId);
+                if (p.running && p.total > 0 && box) {
+                    fill.classList.remove('indeterminate');
+                    fill.style.width = Math.min(100, Math.round(100 * p.processed / p.total)) + '%';
+                    label.textContent = mc.format(text.progress, mc.number(p.processed), mc.number(p.total));
+                    counts.innerHTML = '<span style="color:#16a34a">✓ ' + mc.number(p.items) + '</span> &nbsp; <span style="color:#dc2626">✕ ' + mc.number(p.heldBack) + '</span>';
+                }
+            } catch { }
+            if (!done) setTimeout(poll, 600);
+        };
+        setTimeout(poll, 400);
+        try {
+            const result = await mc.post(urls.generate, { id: feedId });
+            done = true;
+            if (box) { fill.classList.remove('indeterminate'); fill.style.width = '100%'; }
+            mc.toast(result.message, result.ok);
+            if (result.ok) setTimeout(() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('build');
+                window.location.href = url.toString();
+            }, 900);
+            else if (!result.busy) setTimeout(() => window.location.reload(), 2500); // shows why it stopped
+            else if (button) { button.disabled = false; button.innerHTML = button.dataset.label; }
+        } catch {
+            done = true;
+            mc.toast(text.failed, false);
+            if (button) { button.disabled = false; button.innerHTML = button.dataset.label; }
+            box?.classList.remove('on');
+        }
+    };
+    document.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-mc-build]');
+        if (!button) return;
+        event.preventDefault();
+        mc.build(button.dataset.mcBuild, button.dataset.mcProgress, button);
+    });
+
+    // Animate rings and bars on load
+    window.addEventListener('load', () => {
+        document.querySelectorAll('[data-mc-dash]').forEach(c => requestAnimationFrame(() => c.setAttribute('stroke-dasharray', c.dataset.mcDash)));
+    });
+})();
+</script>

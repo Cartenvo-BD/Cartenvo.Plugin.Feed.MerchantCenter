@@ -1,0 +1,378 @@
+@model OverviewModel
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "Title").Text;
+    ViewData["McTab"] = "overview";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    const double circumference = 2 * Math.PI * 38;
+}
+@functions {
+    string Ago(DateTime? utc)
+    {
+        const string P = MerchantCenterDefaults.ResourcePrefix;
+        if (utc == null) return T(P + "Feed.NeverBuilt").Text;
+        var span = DateTime.UtcNow - utc.Value;
+        if (span.TotalMinutes < 1) return T(P + "Ago.Now").Text;
+        if (span.TotalHours < 1) return string.Format(T(P + "Ago.Minutes").Text, (int)span.TotalMinutes);
+        if (span.TotalDays < 1) return string.Format(T(P + "Ago.Hours").Text, (int)span.TotalHours);
+        return string.Format(T(P + "Ago.Days").Text, (int)span.TotalDays);
+    }
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+@if (Model.Feeds.Count == 0)
+{
+    var q = Model.QuickStart;
+    <!-- Welcome: one form creates the first feed with sensible defaults and builds it. -->
+    <section class="mc-hero">
+        <div class="mc-hero-grid">
+            <div>
+                <h2>@T(P + "Welcome.Title")</h2>
+                <p class="lead">@T(P + "Welcome.Text")</p>
+                <ol class="mc-steps">
+                    <li><span class="num">1</span><div><b>@T(P + "Welcome.Step1")</b><span>@T(P + "Welcome.Step1.Text")</span></div></li>
+                    <li><span class="num">2</span><div><b>@T(P + "Welcome.Step2")</b><span>@T(P + "Welcome.Step2.Text")</span></div></li>
+                    <li><span class="num">3</span><div><b>@T(P + "Welcome.Step3")</b><span>@T(P + "Welcome.Step3.Text")</span></div></li>
+                </ol>
+                <div class="mc-free"><i class="fas fa-lock"></i> @T(P + "Welcome.Free")</div>
+            </div>
+            <form class="mc-quick" asp-action="QuickCreate" method="post">
+                <h3><i class="fas fa-rocket" style="color:#2563eb"></i> @T(P + "QuickStart.Title")</h3>
+                <p>@T(P + "QuickStart.Hint")</p>
+                @if (q.Stores.Count > 1)
+                {
+                    <div class="mc-field">
+                        <label for="qs-store">@T(P + "Field.Store")</label>
+                        <select id="qs-store" name="StoreId" class="mc-input">
+                            @foreach (var o in q.Stores) { <option value="@o.Value" selected="@(o.Value == q.StoreId.ToString())">@o.Text</option> }
+                        </select>
+                    </div>
+                }
+                else
+                {
+                    <input type="hidden" name="StoreId" value="@q.StoreId" />
+                }
+                <div class="mc-field">
+                    <label for="qs-country">@T(P + "Field.Country")</label>
+                    <select id="qs-country" name="CountryCode" class="mc-input" data-mc-country>
+                        @foreach (var o in q.Countries) { <option value="@o.Value" selected="@(o.Value == q.CountryCode)">@o.Text</option> }
+                    </select>
+                </div>
+                <div class="mc-row">
+                    <div class="mc-field">
+                        <label for="qs-language">@T(P + "Field.Language")</label>
+                        <select id="qs-language" name="LanguageId" class="mc-input">
+                            @foreach (var o in q.Languages) { <option value="@o.Value" selected="@(o.Value == q.LanguageId.ToString())">@o.Text</option> }
+                        </select>
+                    </div>
+                    <div class="mc-field">
+                        <label for="qs-currency">@T(P + "Field.Currency")</label>
+                        <select id="qs-currency" name="CurrencyId" class="mc-input">
+                            @foreach (var o in q.Currencies) { <option value="@o.Value" selected="@(o.Value == q.CurrencyId.ToString())">@o.Text</option> }
+                        </select>
+                    </div>
+                </div>
+                <label class="mc-switch">
+                    <input type="checkbox" name="PricesIncludeTax" value="true" checked="@q.PricesIncludeTax" data-mc-tax />
+                    <span class="track"></span>
+                    <span><b>@T(P + "Field.PricesIncludeTax")</b><span class="hint">@T(P + "Field.PricesIncludeTax.Hint")</span></span>
+                </label>
+                <input type="hidden" name="Enabled" value="true" />
+                <input type="hidden" name="AllCategories" value="true" />
+                <button type="submit" class="mc-btn primary lg" style="width:100%"><i class="fas fa-magic"></i> @T(P + "QuickStart.Create")</button>
+                <div class="text-center mt-2"><a asp-action="Feed" class="small">@T(P + "QuickStart.More")</a></div>
+            </form>
+        </div>
+    </section>
+}
+else
+{
+    var mappedTone = Model.MappedPercent >= 100 ? "good" : "";
+    var ready = Model.ReadyPercent;
+    var ringColor = !Model.AnyBuilt ? "#cbd5e1" : ready >= 95 ? "#16a34a" : ready >= 75 ? "#f59e0b" : "#dc2626";
+    var dash = (Model.AnyBuilt ? ready / 100.0 * circumference : 0).ToString("0.##", inv) + " " + circumference.ToString("0.##", inv);
+
+    <!-- Headline numbers -->
+    <div class="mc-kpis">
+        <div class="mc-kpi ring" title="@T(P + "Kpi.Ready.Hint")">
+            <div class="mc-ring">
+                <svg width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">
+                    <circle cx="46" cy="46" r="38" fill="none" stroke="#eef2f7" stroke-width="10" />
+                    <circle class="fg" cx="46" cy="46" r="38" fill="none" stroke="@ringColor" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 @circumference.ToString("0.##", inv)" data-mc-dash="@dash" />
+                </svg>
+                <b>@(Model.AnyBuilt ? ready + "%" : "—")</b>
+            </div>
+            <div>
+                <div class="label">@T(P + "Kpi.Ready")</div>
+                <div class="muted small">@T(P + "Kpi.Ready.Hint")</div>
+            </div>
+        </div>
+        <div class="mc-kpi good">
+            <div class="label"><i class="fas fa-check-circle" style="color:#16a34a"></i> @T(P + "Kpi.Sent")</div>
+            <div class="value">@Model.Sent.ToString("N0")</div>
+        </div>
+        <a class="mc-kpi @(Model.HeldBack > 0 ? "bad" : "")" asp-action="Issues">
+            <div class="label"><i class="fas fa-ban" style="color:#dc2626"></i> @T(P + "Kpi.HeldBack")</div>
+            <div class="value">@Model.HeldBack.ToString("N0")</div>
+        </a>
+        <a class="mc-kpi @(Model.Warnings > 0 ? "warn" : "")" asp-action="Issues">
+            <div class="label"><i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> @T(P + "Kpi.Warnings")</div>
+            <div class="value">@Model.Warnings.ToString("N0")</div>
+        </a>
+        <a class="mc-kpi @mappedTone" asp-action="Categories">
+            <div class="label"><i class="fas fa-sitemap" style="color:#2563eb"></i> @T(P + "Kpi.Categories")</div>
+            <div class="value">@Model.CategoriesMapped<small> / @Model.CategoriesTotal</small></div>
+            <div class="bar"><i style="width:@Model.MappedPercent.ToString(inv)%"></i></div>
+        </a>
+    </div>
+
+    <div class="mc-grid two">
+        <div>
+            <div class="mc-feeds">
+                @foreach (var card in Model.Feeds)
+                {
+                    var feed = card.Feed;
+                    <article class="mc-feed" id="feed-@feed.Id">
+                        <div class="mc-feed-head">
+                            <img class="mc-flag" src="@Url.Content(ViewHelpers.FlagImage(feed.CountryCode))" alt="" onerror="this.style.visibility='hidden'" />
+                            <div style="min-width:0">
+                                <h3>@feed.Name</h3>
+                                <div class="meta">@card.LanguageName · @card.CurrencyCode@(Model.Feeds.Select(f => f.Feed.StoreId).Distinct().Count() > 1 ? " · " + card.StoreName : "")</div>
+                            </div>
+                            <span class="mc-pill @card.Status">@T(P + "Feed.Status." + card.Status)</span>
+                        </div>
+                        <div class="mc-feed-stats">
+                            <div><b>@feed.LastItemCount.ToString("N0")</b><span>@T(P + "Kpi.Sent")</span></div>
+                            <div class="@(feed.LastHeldBackCount > 0 ? "bad" : "")"><b>@feed.LastHeldBackCount.ToString("N0")</b><span>@T(P + "Kpi.HeldBack")</span></div>
+                            <div class="@(feed.LastWarningCount > 0 ? "warn" : "")"><b>@feed.LastWarningCount.ToString("N0")</b><span>@T(P + "Kpi.Warnings")</span></div>
+                        </div>
+                        <div class="mc-feed-body">
+                            @if (!string.IsNullOrEmpty(feed.LastError))
+                            {
+                                <div class="mc-feed-error"><i class="fas fa-exclamation-circle"></i> @string.Format(T(P + "Feed.Error").Text, feed.LastError)</div>
+                            }
+                            @if (feed.IsApi)
+                            {
+                                @if (!string.IsNullOrEmpty(feed.LastSyncError))
+                                {
+                                    <div class="mc-feed-error"><i class="fas fa-exclamation-circle"></i> @string.Format(T(P + "Sync.Error").Text, feed.LastSyncError)
+                                        <a asp-controller="MerchantCenterSync" asp-action="Connection">@T(P + "Sync.Error.Check")</a></div>
+                                }
+                                <div class="mc-sync">
+                                    <span class="mc-sync-icon"><i class="fas fa-bolt"></i></span>
+                                    <div>
+                                        <b>@T(P + "Sync.Title")</b>
+                                        <span>@(card.Sync?.LastSentOnUtc == null ? T(P + "Sync.NothingYet").Text : string.Format(T(P + "Sync.LastChange").Text, Ago(card.Sync.LastSentOnUtc)))@if (card.Queued > 0) {<text> · @string.Format(T(P + "Sync.Queued").Text, card.Queued.ToString("N0"))</text>}</span>
+                                    </div>
+                                    @if (card.Sync?.Errors > 0)
+                                    {
+                                        <a class="mc-pill error nodot" asp-controller="MerchantCenterSync" asp-action="Connection" asp-fragment="errors">@string.Format(T(P + "Sync.Errors").Text, card.Sync.Errors.ToString("N0"))</a>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div>
+                                    <div class="mc-label">@T(P + "Feed.Url")</div>
+                                    <div class="mc-url">
+                                        <input id="url-@feed.Id" value="@card.Url" readonly onclick="this.select()" aria-label="@T(P + "Feed.Url")" />
+                                        <button type="button" data-mc-copy="#url-@feed.Id"><i class="far fa-copy"></i> @T(P + "Feed.Copy")</button>
+                                    </div>
+                                </div>
+                            }
+                            <div class="muted small">
+                                <i class="far fa-clock"></i> @(feed.LastGeneratedOnUtc == null ? T(P + (feed.IsApi ? "Sync.NeverCompared" : "Feed.NeverBuilt")).Text : string.Format(T(P + (feed.IsApi ? "Sync.LastCompared" : "Feed.LastBuilt")).Text, Ago(feed.LastGeneratedOnUtc)))
+                                @if (feed.LastGeneratedOnUtc != null)
+                                {
+                                    <span> · @string.Format(T(P + "Seconds").Text, (feed.LastDurationMs / 1000.0).ToString("0.0"))</span>
+                                    @if (card.FileExists && !feed.IsApi) { <span> · @ViewHelpers.FileSize(card.FileSize)</span> }
+                                }
+                                @if (feed.AddedToMerchantCenter && !feed.IsApi) { <span> · <i class="fas fa-link" style="color:#16a34a"></i> @T(P + "Feed.Added")</span> }
+                            </div>
+                            <div class="mc-progress" id="progress-@feed.Id">
+                                <div class="track"><div class="fill"></div></div>
+                                <div class="text"><span class="label"></span><span class="counts"></span></div>
+                            </div>
+                        </div>
+                        <div class="mc-feed-foot">
+                            <button type="button" class="mc-btn primary sm" data-mc-build="@feed.Id" data-mc-progress="#progress-@feed.Id" id="build-@feed.Id"><i class="fas @(feed.IsApi ? "fa-bolt" : "fa-sync-alt")"></i> @T(P + (feed.IsApi ? "Sync.Now" : "Feed.Generate"))</button>
+                            @if (!feed.IsApi)
+                            {
+                                <button type="button" class="mc-btn sm" data-mc-open="#guide-@feed.Id"><i class="fab fa-google"></i> @T(P + "Feed.HowToAdd")</button>
+                            }
+                            <a class="mc-btn sm ghost" asp-action="Preview" asp-route-feedId="@feed.Id"><i class="far fa-eye"></i> @T(P + "Nav.Preview")</a>
+                            <span class="mc-spacer"></span>
+                            <div class="mc-dropdown">
+                                <button type="button" class="mc-btn sm ghost" data-mc-toggle="#menu-@feed.Id" aria-label="@T(P + "Feed.More")"><i class="fas fa-ellipsis-h"></i></button>
+                                <div class="mc-menu" id="menu-@feed.Id">
+                                    <a asp-action="Feed" asp-route-id="@feed.Id"><i class="fas fa-pen fa-fw"></i> @T(P + "Feed.Edit")</a>
+                                    @if (card.FileExists && !feed.IsApi) { <a asp-action="Download" asp-route-id="@feed.Id"><i class="fas fa-download fa-fw"></i> @T(P + "Feed.Download")</a> }
+                                    <form asp-action="NewToken" style="@(feed.IsApi ? "display:none" : null)" asp-route-id="@feed.Id" method="post" data-mc-confirm="@T(P + "Feed.NewToken.Confirm")">
+                                        <button type="submit"><i class="fas fa-key fa-fw"></i> @T(P + "Feed.NewToken")</button>
+                                    </form>
+                                    <form asp-action="DeleteFeed" asp-route-id="@feed.Id" method="post" data-mc-confirm="@T(P + "Feed.Delete.Confirm")">
+                                        <button type="submit" style="color:#dc2626"><i class="far fa-trash-alt fa-fw"></i> @T(P + "Feed.Delete")</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- How to add this feed in Merchant Center -->
+                    <div class="mc-modal" id="guide-@feed.Id" role="dialog" aria-modal="true" aria-labelledby="guide-title-@feed.Id">
+                        <div class="box">
+                            <div class="box-head">
+                                <img class="mc-flag" src="@Url.Content(ViewHelpers.FlagImage(feed.CountryCode))" alt="" onerror="this.style.visibility='hidden'" />
+                                <h3 id="guide-title-@feed.Id">@T(P + "Guide.Title")</h3>
+                                <button type="button" class="mc-btn ghost sm" data-mc-close aria-label="@T(P + "Guide.Close")"><i class="fas fa-times"></i></button>
+                            </div>
+                            <div class="box-body">
+                                @if (ViewHelpers.IsLocal(card.Url))
+                                {
+                                    <div class="mc-callout warning"><i class="fas fa-exclamation-triangle"></i><div>@string.Format(T(P + "Guide.Local").Text, ViewHelpers.StoreAddress(card.Url))</div></div>
+                                }
+                                <ol class="mc-guide">
+                                    <li>@T(P + "Guide.Step1")</li>
+                                    <li>@T(P + "Guide.Step2")</li>
+                                    <li>@T(P + "Guide.Step3")
+                                        <div class="mc-url mt-2">
+                                            <input id="gurl-@feed.Id" value="@card.Url" readonly onclick="this.select()" aria-label="@T(P + "Feed.Url")" />
+                                            <button type="button" data-mc-copy="#gurl-@feed.Id"><i class="far fa-copy"></i> @T(P + "Feed.Copy")</button>
+                                        </div>
+                                    </li>
+                                    <li>@string.Format(T(P + "Guide.Step4").Text, card.CountryName, card.LanguageName)</li>
+                                    <li>@T(P + "Guide.Step5")</li>
+                                </ol>
+                                <div class="muted small"><i class="fas fa-user-secret"></i> @T(P + "Guide.Note")</div>
+                            </div>
+                            <div class="box-foot">
+                                <a class="mc-btn" href="@MerchantCenterDefaults.MerchantCenterUrl" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> @T(P + "Guide.Open")</a>
+                                <form asp-action="MarkAdded" asp-route-id="@feed.Id" method="post">
+                                    <button type="submit" class="mc-btn primary"><i class="fas fa-check"></i> @T(P + "Guide.Done")</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+                <a class="mc-addfeed" asp-action="Feed">
+                    <i class="fas fa-plus-circle"></i>
+                    <b>@T(P + "Feed.Add")</b>
+                    <span class="small">@T(P + "Feed.Add.Hint")</span>
+                </a>
+            </div>
+        </div>
+
+        <div>
+            @{
+                var built = Model.AnyBuilt;
+                var mappedAll = Model.CategoriesMapped >= Model.CategoriesTotal;
+                var fixedAll = built && Model.HeldBack == 0;
+                var notAdded = Model.Feeds.FirstOrDefault(f => !f.Feed.AddedToMerchantCenter && !f.Feed.IsApi);
+                var allDone = built && mappedAll && fixedAll && notAdded == null;
+            }
+            <div class="mc-card">
+                <h3><i class="fas fa-tasks" style="color:#2563eb"></i> @T(P + "Checklist.Title")</h3>
+                <ul class="mc-checklist">
+                    <li class="done"><span class="tick"><i class="fas fa-check"></i></span><span class="what">@T(P + "Checklist.Created")</span></li>
+                    <li class="@(built ? "done" : null)">
+                        <span class="tick"><i class="fas fa-check"></i></span>
+                        <span class="what">@T(P + "Checklist.Built")</span>
+                        @if (!built) { <button type="button" class="mc-btn sm primary" onclick="document.getElementById('build-@Model.Feeds[0].Feed.Id').click()">@T(P + "Feed.Generate")</button> }
+                    </li>
+                    <li class="@(mappedAll ? "done" : null)">
+                        <span class="tick"><i class="fas fa-check"></i></span>
+                        <span class="what">@T(P + "Checklist.Categories")<small>@string.Format(T(P + "Checklist.Categories.Count").Text, Model.CategoriesMapped, Model.CategoriesTotal)</small></span>
+                        @if (!mappedAll) { <a class="mc-btn sm" asp-action="Categories">@T(P + "Checklist.Go")</a> }
+                    </li>
+                    <li class="@(fixedAll ? "done" : null)">
+                        <span class="tick"><i class="fas fa-check"></i></span>
+                        <span class="what">@T(P + "Checklist.Fix")@if (built && Model.HeldBack > 0) {<small>@string.Format(T(P + "Checklist.Fix.Count").Text, Model.HeldBack.ToString("N0"))</small>}</span>
+                        @if (built && !fixedAll) { <a class="mc-btn sm" asp-action="Issues">@T(P + "Checklist.Go")</a> }
+                    </li>
+                    <li class="@(notAdded == null ? "done" : null)">
+                        <span class="tick"><i class="fas fa-check"></i></span>
+                        <span class="what">@T(P + "Checklist.Added")</span>
+                        @if (notAdded != null) { <button type="button" class="mc-btn sm" data-mc-open="#guide-@notAdded.Feed.Id">@T(P + "Checklist.Show")</button> }
+                    </li>
+                </ul>
+                @if (allDone)
+                {
+                    <div class="mc-alldone"><i class="fas fa-check-circle"></i> @T(P + "Checklist.AllDone")</div>
+                }
+            </div>
+
+            @if (!Model.ApiConnected)
+            {
+                <a class="mc-promo" asp-controller="MerchantCenterSync" asp-action="Connection">
+                    <span class="mc-sync-icon"><i class="fas fa-bolt"></i></span>
+                    <span><b>@T(P + "Promo.Title")</b><span>@T(P + "Promo.Text")</span></span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            }
+
+            <div class="mc-card">
+                <h3><i class="fas fa-clipboard-check" style="color:#2563eb"></i> @T(P + "Problems.Title")</h3>
+                @if (!built)
+                {
+                    <p class="muted mb-0">@T(P + "Problems.NotBuilt")</p>
+                }
+                else if (Model.Problems.Count == 0)
+                {
+                    <p class="mb-0"><i class="fas fa-check-circle" style="color:#16a34a"></i> @T(P + "Problems.None")</p>
+                }
+                else
+                {
+                    foreach (var group in new[] { IssueSeverity.Error, IssueSeverity.Warning, IssueSeverity.Info })
+                    {
+                        var rows = Model.Problems.Where(p => IssueCodes.Severity.GetValueOrDefault(p.Key) == group).OrderByDescending(p => p.Value).ToList();
+                        if (rows.Count == 0) { continue; }
+                        var tone = group == IssueSeverity.Error ? "error" : group == IssueSeverity.Warning ? "warning" : "info";
+                        <div class="mc-group-label">@T(P + (group == IssueSeverity.Error ? "Problems.HeldBack" : group == IssueSeverity.Warning ? "Problems.Warnings" : "Problems.Info"))</div>
+                        <ul class="mc-problems">
+                            @foreach (var (code, count) in rows)
+                            {
+                                <li>
+                                    <span class="mc-chip" style="padding:0;border:0"><span class="dot @tone"></span></span>
+                                    <span class="what"><b>@T(P + "Issue." + code)</b><span>@T(P + "Issue." + code + ".Fix")</span></span>
+                                    <span class="count">@count.ToString("N0")</span>
+                                    @if (code == IssueCodes.UnmappedCategory)
+                                    {
+                                        <a class="mc-btn sm" asp-action="Categories">@T(P + "Problems.Fix")</a>
+                                    }
+                                    else if (group != IssueSeverity.Info)
+                                    {
+                                        <a class="mc-btn sm" asp-action="Issues" asp-route-code="@code">@T(P + "Problems.Fix")</a>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<div class="mc-foot">
+    <span><i class="fas fa-heart" style="color:#ef4444"></i> @T(P + "Footer.Text")</span>
+    <a href="@MerchantCenterDefaults.ServicesUrl" target="_blank" rel="noopener">@T(P + "Footer.Help")</a>
+    <a href="@MerchantCenterDefaults.GitHubUrl" target="_blank" rel="noopener">@T(P + "Footer.GitHub")</a>
+</div>
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />
+<script>
+    // Prices include tax everywhere except the US and Canada.
+    document.querySelectorAll('[data-mc-country]').forEach(select => select.addEventListener('change', () => {
+        const tax = select.form.querySelector('[data-mc-tax]');
+        if (tax) tax.checked = !['US', 'CA'].includes(select.value);
+    }));
+    @if (Model.AutoBuildFeedId > 0)
+    {
+        <text>window.addEventListener('load', () => document.getElementById('build-@Model.AutoBuildFeedId')?.click());</text>
+    }
+</script>

@@ -1,0 +1,362 @@
+@model ConnectionModel
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "Connection.Title").Text;
+    ViewData["McTab"] = "connection";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    string StepClass(int step) => Model.Step > step ? "done" : Model.Step == step ? "current" : "todo";
+    var apiFeeds = Model.Feeds.Where(f => f.Feed.IsApi).ToList();
+}
+@functions {
+    string Ago(DateTime? utc)
+    {
+        const string P = MerchantCenterDefaults.ResourcePrefix;
+        if (utc == null) return "—";
+        var span = DateTime.UtcNow - utc.Value;
+        if (span.TotalMinutes < 1) return T(P + "Ago.Now").Text;
+        if (span.TotalHours < 1) return string.Format(T(P + "Ago.Minutes").Text, (int)span.TotalMinutes);
+        if (span.TotalDays < 1) return string.Format(T(P + "Ago.Hours").Text, (int)span.TotalHours);
+        return string.Format(T(P + "Ago.Days").Text, (int)span.TotalDays);
+    }
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+<!-- Where the connection stands -->
+<section class="mc-conn @(Model.Connected ? "on" : null)">
+    <span class="mc-conn-icon"><i class="fas @(Model.Connected ? "fa-check" : "fa-bolt")"></i></span>
+    <div class="mc-conn-text">
+        @if (Model.Connected)
+        {
+            <h2>@string.Format(T(P + "Connection.Hero.On").Text, string.IsNullOrEmpty(Model.AccountName) ? Model.MerchantId : Model.AccountName)</h2>
+            <p>@(apiFeeds.Count == 0 ? T(P + "Connection.Hero.On.NoFeeds").Text : string.Format(T(P + "Connection.Hero.On.Text").Text, apiFeeds.Count))</p>
+        }
+        else
+        {
+            <h2>@T(P + "Connection.Hero.Off")</h2>
+            <p>@T(P + "Connection.Hero.Off.Text")</p>
+        }
+    </div>
+    @if (!Model.Connected)
+    {
+        <div class="mc-conn-progress" aria-label="@T(P + "Connection.Progress")">
+            @for (var i = 1; i <= 3; i++)
+            {
+                <span class="@StepClass(i)"><b>@i</b></span>
+            }
+        </div>
+    }
+</section>
+
+@if (Model.KeySaved && !Model.KeyReadable)
+{
+    <div class="mc-callout error"><i class="fas fa-exclamation-circle"></i><div>@T(P + "Connection.KeyUnreadable")</div></div>
+}
+
+<div class="mc-grid two">
+    <div>
+        @if (Model.Connected)
+        {
+            <!-- Feeds: choose which ones sync, and their state -->
+            <div class="mc-card">
+                <h3><i class="fas fa-stream" style="color:#2563eb"></i> @T(P + "Connection.Feeds")</h3>
+                <p class="mc-intro">@T(P + "Connection.Feeds.Text")</p>
+                @if (Model.Feeds.Count == 0)
+                {
+                    <p class="mb-0"><a asp-controller="MerchantCenter" asp-action="Feed" class="mc-btn primary"><i class="fas fa-plus"></i> @T(P + "Feed.Add")</a></p>
+                }
+                <div class="mc-syncfeeds">
+                    @foreach (var card in Model.Feeds)
+                    {
+                        var feed = card.Feed;
+                        <div class="mc-syncfeed @(feed.IsApi ? "on" : null)">
+                            <div class="mc-syncfeed-head">
+                                <img class="mc-flag" src="@Url.Content(ViewHelpers.FlagImage(feed.CountryCode))" alt="" onerror="this.style.visibility='hidden'" />
+                                <div class="mc-syncfeed-name">
+                                    <b>@feed.Name</b>
+                                    <div class="muted small">@card.LanguageName · @card.CurrencyCode · @T(P + (feed.IsApi ? "Mode.Api" : "Mode.File"))</div>
+                                </div>
+                                <form asp-action="SetMode" method="post" data-mc-confirm="@T(P + (feed.IsApi ? "Mode.ToFile.Confirm" : "Mode.ToApi.Confirm"))">
+                                    <input type="hidden" name="feedId" value="@feed.Id" />
+                                    <input type="hidden" name="api" value="@(feed.IsApi ? "false" : "true")" />
+                                    <label class="mc-switch mb-0" title="@T(P + "Connection.Feeds.Toggle")">
+                                        <input type="checkbox" checked="@feed.IsApi" onchange="this.form.requestSubmit()" aria-label="@T(P + "Connection.Feeds.Toggle")" />
+                                        <span class="track"></span>
+                                        <span><b>@T(P + "Connection.Feeds.Toggle")</b></span>
+                                    </label>
+                                </form>
+                            </div>
+                            @if (feed.IsApi)
+                            {
+                                <div class="mc-syncfeed-stats">
+                                    <div><b>@((card.Sync?.Live ?? 0).ToString("N0"))</b><span>@T(P + "Sync.InGoogle")</span></div>
+                                    <div class="@(feed.LastHeldBackCount > 0 ? "bad" : null)"><b>@feed.LastHeldBackCount.ToString("N0")</b><span>@T(P + "Kpi.HeldBack")</span></div>
+                                    <div class="@(card.Sync?.Errors > 0 ? "bad" : null)"><b>@((card.Sync?.Errors ?? 0).ToString("N0"))</b><span>@T(P + "Sync.Refused")</span></div>
+                                    <div><b>@card.Queued.ToString("N0")</b><span>@T(P + "Sync.Waiting")</span></div>
+                                </div>
+                                @if (!string.IsNullOrEmpty(feed.LastSyncError))
+                                {
+                                    <div class="mc-feed-error mt-2"><i class="fas fa-exclamation-circle"></i> @string.Format(T(P + "Sync.Error").Text, feed.LastSyncError)</div>
+                                }
+                                <div class="mc-syncfeed-foot">
+                                    <span class="muted small"><i class="far fa-clock"></i>
+                                        @(feed.LastFullSyncOnUtc == null ? T(P + "Sync.NeverCompared").Text : string.Format(T(P + "Sync.LastCompared").Text, Ago(feed.LastFullSyncOnUtc)))
+                                        @if (card.Sync?.LastSentOnUtc != null) { <text> · @string.Format(T(P + "Sync.LastChange").Text, Ago(card.Sync.LastSentOnUtc))</text> }
+                                    </span>
+                                    <span class="mc-spacer"></span>
+                                    <button type="button" class="mc-btn primary sm" data-mc-build="@feed.Id" data-mc-progress="#progress-@feed.Id"><i class="fas fa-bolt"></i> @T(P + "Sync.Now")</button>
+                                </div>
+                                <div class="mc-progress" id="progress-@feed.Id">
+                                    <div class="track"><div class="fill"></div></div>
+                                    <div class="text"><span class="label"></span><span class="counts"></span></div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Products Google refused -->
+            <div class="mc-card" id="errors">
+                <h3><i class="fas fa-exclamation-circle" style="color:#dc2626"></i> @T(P + "Connection.Errors")
+                    @if (Model.Errors.Count > 0) { <span class="mc-pill error nodot">@Model.Errors.Count</span> }</h3>
+                @if (Model.Errors.Count == 0)
+                {
+                    <p class="mb-0"><i class="fas fa-check-circle" style="color:#16a34a"></i> @T(P + "Connection.Errors.None")</p>
+                }
+                else
+                {
+                    <p class="mc-intro">@T(P + "Connection.Errors.Text")</p>
+                    <div class="mc-table-wrap">
+                        <table class="mc-table">
+                            <thead><tr><th>@T(P + "Connection.Errors.Product")</th><th>@T(P + "Connection.Errors.Reason")</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var error in Model.Errors)
+                                {
+                                    <tr>
+                                        <td style="min-width:180px">
+                                            <div class="mc-product"><b>@error.ProductName</b><span class="mono">@error.OfferId · @error.FeedName</span></div>
+                                        </td>
+                                        <td><span class="mc-google-error">@error.Error</span><div class="muted small mt-1">@Ago(error.OnUtc) @if (error.Removing) {<text> · @T(P + "Connection.Errors.Removing")</text>}</div></td>
+                                        <td style="white-space:nowrap;text-align:right">
+                                            <a class="mc-btn sm ghost" asp-controller="MerchantCenter" asp-action="Preview" asp-route-productId="@error.ProductId"><i class="far fa-eye"></i></a>
+                                            <a class="mc-btn sm" href="@Url.Action("Edit", "Product", new { id = error.ProductId })" target="_blank" rel="noopener"><i class="fas fa-pen"></i> @T(P + "Issues.Edit")</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Set-up steps. Once connected they fold into "Change key or account". -->
+        <details class="mc-card mc-setup" @(Model.Connected ? null : "open")>
+            <summary class="mc-card-title"><i class="fas fa-plug" style="color:#2563eb"></i> @T(P + (Model.Connected ? "Connection.Change" : "Connection.Setup"))</summary>
+            <ol class="mc-wizard">
+                <li class="mc-wstep @StepClass(1)" id="step-1">
+                    <span class="mc-wnum"><b>1</b><i class="fas fa-check"></i></span>
+                    <div class="mc-wbody">
+                        <h4>@T(P + "Connection.Step1")</h4>
+                        <p>@T(P + "Connection.Step1.Text")</p>
+                        <ol class="mc-guide">
+                            <li>@T(P + "Connection.Step1.A") <a href="@MerchantCenterDefaults.CloudConsoleUrl" target="_blank" rel="noopener" class="mc-ext">@T(P + "Connection.Open") <i class="fas fa-external-link-alt"></i></a></li>
+                            <li>@T(P + "Connection.Step1.B") <a href="@MerchantCenterDefaults.EnableApiUrl" target="_blank" rel="noopener" class="mc-ext">@T(P + "Connection.Open") <i class="fas fa-external-link-alt"></i></a></li>
+                            <li>@T(P + "Connection.Step1.C") <a href="@MerchantCenterDefaults.ServiceAccountsUrl" target="_blank" rel="noopener" class="mc-ext">@T(P + "Connection.Open") <i class="fas fa-external-link-alt"></i></a></li>
+                            <li>@T(P + "Connection.Step1.D")</li>
+                            <li>@T(P + "Connection.Step1.E") <a href="@MerchantCenterDefaults.MerchantCenterUrl" target="_blank" rel="noopener" class="mc-ext">@T(P + "Connection.Open") <i class="fas fa-external-link-alt"></i></a></li>
+                            <li>@T(P + "Connection.Step1.F")</li>
+                        </ol>
+                        <form id="key-form" class="mc-keyform" onsubmit="return false">
+                            <div class="mc-field">
+                                <label for="merchant-id">@T(P + "Connection.MerchantId")</label>
+                                <input id="merchant-id" name="merchantId" class="mc-input" inputmode="numeric" autocomplete="off" value="@Model.MerchantId" placeholder="123456789" style="max-width:260px" />
+                                <div class="hint">@T(P + "Connection.MerchantId.Hint")</div>
+                            </div>
+                            <div class="mc-field">
+                                <label for="key-json">@T(P + "Connection.Key")</label>
+                                <label class="mc-drop" id="key-drop">
+                                    <input type="file" accept=".json,application/json" id="key-file" />
+                                    <i class="fas fa-file-upload"></i>
+                                    <b id="key-drop-text">@T(P + (Model.KeySaved ? "Connection.Key.Replace" : "Connection.Key.Drop"))</b>
+                                    <span>@T(P + "Connection.Key.Drop.Hint")</span>
+                                </label>
+                                <details class="mt-2">
+                                    <summary class="small">@T(P + "Connection.Key.Paste")</summary>
+                                    <textarea id="key-json" class="mc-input mono mt-2" rows="5" spellcheck="false" autocomplete="off" placeholder='{ "type": "service_account", ... }'></textarea>
+                                </details>
+                                @if (Model.KeySaved && Model.KeyReadable)
+                                {
+                                    <div class="hint"><i class="fas fa-lock"></i> @string.Format(T(P + "Connection.Key.Saved").Text, Model.ClientEmail)</div>
+                                }
+                            </div>
+                            <button type="button" class="mc-btn primary" id="save-key"><i class="fas fa-vial"></i> @T(P + "Connection.SaveTest")</button>
+                            <div class="mc-result" id="key-result" hidden></div>
+                        </form>
+                    </div>
+                </li>
+
+                <li class="mc-wstep @StepClass(2)" id="step-2">
+                    <span class="mc-wnum"><b>2</b><i class="fas fa-check"></i></span>
+                    <div class="mc-wbody">
+                        <h4>@T(P + "Connection.Step2")</h4>
+                        @if (Model.Step >= 2)
+                        {
+                            <p>@T(P + "Connection.Step2.Text")</p>
+                            <ol class="mc-guide">
+                                <li>@T(P + "Connection.Step2.A")
+                                    <div class="mc-url mt-1 mb-1" style="max-width:560px">
+                                        <input id="sa-email" value="@Model.ClientEmail" readonly onclick="this.select()" aria-label="@T(P + "Connection.ServiceAccount")" />
+                                        <button type="button" data-mc-copy="#sa-email"><i class="far fa-copy"></i> @T(P + "Feed.Copy")</button>
+                                    </div>
+                                </li>
+                                <li>@T(P + "Connection.Step2.B") <a href="@MerchantCenterDefaults.PeopleAndAccessUrl" target="_blank" rel="noopener" class="mc-ext">@T(P + "Connection.Open") <i class="fas fa-external-link-alt"></i></a></li>
+                                <li>@T(P + "Connection.Step2.C")</li>
+                                <li>@T(P + "Connection.Step2.D")</li>
+                            </ol>
+                            <div class="mc-field">
+                                <label for="dev-email">@T(P + "Connection.DeveloperEmail")</label>
+                                <input id="dev-email" type="email" class="mc-input" value="@Model.AdminEmail" style="max-width:360px" />
+                                <div class="hint">@T(P + "Connection.DeveloperEmail.Hint")</div>
+                            </div>
+                            <button type="button" class="mc-btn primary" id="register" disabled="@(Model.Step < 2)"><i class="fas fa-id-badge"></i> @T(P + "Connection.Register")</button>
+                            <div class="mc-result" id="register-result" hidden></div>
+                        }
+                        else
+                        {
+                            <p class="muted mb-0">@T(P + "Connection.Step2.Later")</p>
+                        }
+                    </div>
+                </li>
+
+                <li class="mc-wstep @StepClass(3)" id="step-3">
+                    <span class="mc-wnum"><b>3</b><i class="fas fa-check"></i></span>
+                    <div class="mc-wbody">
+                        <h4>@T(P + "Connection.Step3")</h4>
+                        <p class="@(Model.Step < 3 ? "muted mb-0" : null)">@T(P + "Connection.Step3.Text")</p>
+                        @if (Model.Step >= 3)
+                        {
+                            <button type="button" class="mc-btn primary lg" id="connect"><i class="fas fa-plug"></i> @T(P + (Model.Connected ? "Connection.Reconnect" : "Connection.Connect"))</button>
+                            <div class="mc-result" id="connect-result" hidden></div>
+                        }
+                    </div>
+                </li>
+            </ol>
+        </details>
+    </div>
+
+    <div>
+        <div class="mc-card">
+            <h3><i class="fas fa-bolt" style="color:#f59e0b"></i> @T(P + "Connection.How")</h3>
+            <ul class="mc-ticks">
+                <li>@T(P + "Connection.How.1")</li>
+                <li>@T(P + "Connection.How.2")</li>
+                <li>@T(P + "Connection.How.3")</li>
+                <li>@T(P + "Connection.How.4")</li>
+                <li>@T(P + "Connection.How.5")</li>
+            </ul>
+            <div class="mc-callout info mb-0"><i class="far fa-lightbulb"></i><div>@T(P + "Connection.How.Tip")</div></div>
+        </div>
+
+        @if (Model.KeySaved)
+        {
+            <div class="mc-card">
+                <h3><i class="fas fa-id-card" style="color:#2563eb"></i> @T(P + "Connection.Details")</h3>
+                <dl class="mc-kv">
+                    <dt>@T(P + "Connection.MerchantId")</dt><dd class="mono">@Model.MerchantId @if (!string.IsNullOrEmpty(Model.AccountName)) {<span class="muted"> · @Model.AccountName</span>}</dd>
+                    <dt>@T(P + "Connection.ServiceAccount")</dt><dd class="mono">@Model.ClientEmail</dd>
+                    @if (!string.IsNullOrEmpty(Model.ProjectId)) { <dt>@T(P + "Connection.Project")</dt><dd class="mono">@Model.ProjectId</dd> }
+                    <dt>@T(P + "Connection.Registered.Label")</dt><dd>@(Model.Registered ? T(P + "Yes").Text : T(P + "No").Text)</dd>
+                    <dt>@T(P + "Connection.DataSource")</dt><dd class="mono">@(string.IsNullOrEmpty(Model.DataSource) ? "—" : Model.DataSource)</dd>
+                </dl>
+                <form asp-action="Disconnect" method="post" data-mc-confirm="@T(P + "Connection.Disconnect.Confirm")">
+                    <button type="submit" class="mc-btn sm ghost" style="color:#dc2626"><i class="fas fa-unlink"></i> @T(P + "Connection.Disconnect")</button>
+                </form>
+            </div>
+        }
+
+        <div class="mc-card">
+            <h3><i class="fas fa-user-shield" style="color:#16a34a"></i> @T(P + "Connection.Privacy")</h3>
+            <p class="small mb-0">@T(P + "Connection.Privacy.Text")</p>
+        </div>
+    </div>
+</div>
+
+<div class="mc-foot">
+    <span><i class="fas fa-heart" style="color:#ef4444"></i> @T(P + "Footer.Text")</span>
+    <a href="@MerchantCenterDefaults.ServicesUrl" target="_blank" rel="noopener">@T(P + "Footer.Help")</a>
+    <a href="@MerchantCenterDefaults.GitHubUrl" target="_blank" rel="noopener">@T(P + "Footer.GitHub")</a>
+</div>
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />
+<script>
+(function () {
+    const urls = {
+        saveKey: '@Url.Action("SaveKey", "MerchantCenterSync")',
+        register: '@Url.Action("Register", "MerchantCenterSync")',
+        connect: '@Url.Action("Connect", "MerchantCenterSync")'
+    };
+    const text = {
+        working: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Connection.Working").Text)),
+        chosen: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Connection.Key.Chosen").Text)),
+        google: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Connection.GoogleSaid").Text)),
+        notJson: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Connection.Error.Key.not_json").Text))
+    };
+
+    // The key file is read in the browser and sent with the form; it never goes anywhere but this store.
+    const drop = document.getElementById('key-drop');
+    const fileInput = document.getElementById('key-file');
+    const keyText = document.getElementById('key-json');
+    function useFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            keyText.value = reader.result;
+            let email = '';
+            try { email = JSON.parse(reader.result).client_email || ''; } catch { mc.toast(text.notJson, false); }
+            document.getElementById('key-drop-text').textContent = mc.format(text.chosen, file.name) + (email ? ' — ' + email : '');
+            drop.classList.add('chosen');
+        };
+        reader.readAsText(file);
+    }
+    fileInput?.addEventListener('change', () => useFile(fileInput.files[0]));
+    ['dragenter', 'dragover'].forEach(name => drop?.addEventListener(name, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(name => drop?.addEventListener(name, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop?.addEventListener('drop', e => useFile(e.dataTransfer.files[0]));
+
+    function show(box, result) {
+        box.hidden = false;
+        box.className = 'mc-result ' + (result.ok ? 'ok' : 'bad');
+        box.innerHTML = '<i class="fas ' + (result.ok ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i><div><b></b>'
+            + (result.detail ? '<p class="detail"></p>' : '')
+            + (result.google ? '<p class="google"></p>' : '') + '</div>';
+        box.querySelector('b').textContent = result.message;
+        if (result.detail) box.querySelector('.detail').textContent = result.detail;
+        if (result.google) box.querySelector('.google').textContent = text.google + ' ' + result.google;
+    }
+
+    async function run(buttonId, resultId, url, data) {
+        const button = document.getElementById(buttonId);
+        if (!button) return;
+        button.addEventListener('click', async () => {
+            const label = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + text.working;
+            let result;
+            try { result = await mc.post(url, data()); }
+            catch { result = { ok: false, message: mc.text.failed }; }
+            show(document.getElementById(resultId), result);
+            button.disabled = false;
+            button.innerHTML = label;
+            if (result.ok) setTimeout(() => window.location.reload(), result.detail ? 2600 : 1200);
+        });
+    }
+    run('save-key', 'key-result', urls.saveKey, () => ({ merchantId: document.getElementById('merchant-id').value, keyJson: keyText.value }));
+    run('register', 'register-result', urls.register, () => ({ email: document.getElementById('dev-email').value }));
+    run('connect', 'connect-result', urls.connect, () => ({}));
+})();
+</script>

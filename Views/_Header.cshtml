@@ -1,0 +1,59 @@
+@inject Nop.Services.Configuration.ISettingService SettingService
+@inject IEnumerable<Cartenvo.Plugin.Feed.MerchantCenter.Extensibility.IAdminTabProvider> TabProviders
+@{
+    // Shared page frame: styles, title bar and tabs. Pages set ViewData["McTab"] and optionally ViewData["McActions"].
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    var tab = ViewData["McTab"] as string ?? "overview";
+    var tabs = new List<(string Key, string Controller, string Action, string Icon, string Text)>
+    {
+        ("overview", "MerchantCenter", "Configure", "fas fa-th-large", T(P + "Nav.Overview").Text),
+        ("issues", "MerchantCenter", "Issues", "fas fa-wrench", T(P + "Nav.Issues").Text),
+        ("categories", "MerchantCenter", "Categories", "fas fa-sitemap", T(P + "Nav.Categories").Text),
+        ("preview", "MerchantCenter", "Preview", "far fa-eye", T(P + "Nav.Preview").Text),
+        ("connection", "MerchantCenterSync", "Connection", "fas fa-plug", T(P + "Nav.Connection").Text),
+        ("settings", "MerchantCenter", "Settings", "fas fa-sliders-h", T(P + "Nav.Settings").Text)
+    };
+    // Tabs from other plugins (Pro), each placed after the tab it names.
+    foreach (var provider in TabProviders)
+        foreach (var extra in await provider.GetTabsAsync())
+        {
+            var after = tabs.FindLastIndex(t => t.Key == extra.AfterKey);
+            tabs.Insert(after < 0 ? tabs.Count : after + 1, (extra.Key, extra.Controller, extra.Action, extra.Icon, extra.Text));
+        }
+
+    // The connection tab shows its state: connected, set-up started, or optional.
+    var api = await SettingService.LoadSettingAsync<Cartenvo.Plugin.Feed.MerchantCenter.MerchantCenterSettings>();
+    var connection = api.ApiConnected ? "on"
+        : !string.IsNullOrEmpty(api.ApiKeyEncrypted) || !string.IsNullOrEmpty(api.ApiMerchantId) ? "started"
+        : "off";
+    var connectionText = T(P + "Nav.Connection.State." + connection).Text;
+}
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Styles.cshtml" />
+<div class="mc-top">
+    <div class="mc-brand">
+        <img src="~/Plugins/Feed.CartenvoMerchantCenter/logo.png" alt="" width="44" height="44" />
+        <div>
+            <h1>@T(P + "Title")</h1>
+            <p>@T(P + "Tagline")</p>
+        </div>
+    </div>
+    <nav class="mc-tabs" aria-label="@T(P + "Title")">
+        @foreach (var item in tabs)
+        {
+            <a asp-controller="@item.Controller" asp-action="@item.Action" class="@(item.Key == tab ? "active" : null)" aria-current="@(item.Key == tab ? "page" : null)">
+                <i class="@item.Icon"></i><span>@item.Text</span>
+                @if (item.Key == "connection")
+                {
+                    if (connection == "off")
+                    {
+                        <em class="mc-tab-tag">@connectionText</em>
+                    }
+                    else
+                    {
+                        <b class="mc-tab-dot @connection" role="img" title="@connectionText" aria-label="@connectionText"></b>
+                    }
+                }
+            </a>
+        }
+    </nav>
+</div>

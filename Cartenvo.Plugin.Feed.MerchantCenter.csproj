@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    One source tree builds for nopCommerce 4.80, 4.90 and 5.00. The target version is read from the host's
+    Nop.Core.csproj, so the plugin builds for whichever source tree it sits in (src/Plugins).
+    Override with -p:NopVersion=4.80 if needed. 5.00 builds target .NET 10.
+  -->
+  <PropertyGroup>
+    <SupportedNopVersions>4.80;4.90;5.00</SupportedNopVersions>
+    <!-- Plugin release number, shared by every nopCommerce line (gives 4.80.1, 4.90.1 and 5.00.1).
+         Bump it on every release: nopCommerce calls the plugin's UpdateAsync (which adds new texts) only when the version changes. -->
+    <PluginRevision>2</PluginRevision>
+
+    <NopCoreProjectPath>$(MSBuildProjectDirectory)\..\..\Libraries\Nop.Core\Nop.Core.csproj</NopCoreProjectPath>
+    <NopVersion Condition="'$(NopVersion)' == '' And Exists('$(NopCoreProjectPath)')">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(NopCoreProjectPath)')), '&lt;Version&gt;(\d+\.\d+)&lt;/Version&gt;').Groups[1].Value)</NopVersion>
+    <NopVersionSymbol>NOP_$(NopVersion.Replace('.', ''))</NopVersionSymbol>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework Condition="'$(NopVersion)' == '5.00'">net10.0</TargetFramework>
+    <Version>$(NopVersion).$(PluginRevision)</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <DefineConstants>$(DefineConstants);$(NopVersionSymbol)</DefineConstants>
+    <OutputPath>../../Presentation/Nop.Web/Plugins/Feed.CartenvoMerchantCenter</OutputPath>
+    <OutDir>$(OutputPath)</OutDir>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The shared feed engine and the tests are separate projects inside this folder. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);MerchantCenter.Core/**;Tests/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../../Presentation/Nop.Web.Framework/Nop.Web.Framework.csproj" />
+    <ProjectReference Include="MerchantCenter.Core/MerchantCenter.Core.csproj" />
+    <!-- plugin.json is a template: GeneratePluginDescriptor writes the versioned copy to the output. -->
+    <Content Include="Views/**/*.cshtml;logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- logo.svg is the source for logo.png and isn't shipped. -->
+    <None Remove="plugin.json;Views/**/*.cshtml;logo.png;logo.svg" />
+  </ItemGroup>
+
+  <Target Name="ValidateNopVersion" BeforeTargets="BeforeBuild">
+    <Error Condition="'$(NopVersion)' == ''"
+           Text="Could not detect the nopCommerce version from $(NopCoreProjectPath). Place the plugin in src/Plugins of a nopCommerce source tree or pass -p:NopVersion=4.80 (or 4.90, 5.00)." />
+    <Error Condition="!$([System.String]::Copy(';$(SupportedNopVersions);').Contains(';$(NopVersion);'))"
+           Text="nopCommerce $(NopVersion) is not supported. Supported versions: $(SupportedNopVersions)." />
+    <Message Importance="high" Text="Merchant Center Feed $(Version) for nopCommerce $(NopVersion)" />
+  </Target>
+
+  <Target Name="GeneratePluginDescriptor" AfterTargets="CopyFilesToOutputDirectory">
+    <PropertyGroup>
+      <PluginDescriptorContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/plugin.json').Replace('{PluginVersion}', '$(Version)').Replace('{NopVersion}', '$(NopVersion)').TrimEnd())</PluginDescriptorContent>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(OutDir)plugin.json" Lines="$([MSBuild]::Escape('$(PluginDescriptorContent)'))" Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="utf-8" />
+  </Target>
+
+  <Target Name="NopTarget" AfterTargets="Build">
+    <MSBuild Projects="../../Build/ClearPluginAssemblies.proj" Properties="PluginPath=$(MSBuildProjectDirectory)/$(OutDir)" Targets="NopClear" />
+  </Target>
+</Project>

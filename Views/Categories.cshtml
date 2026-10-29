@@ -1,0 +1,236 @@
+@model CategoriesModel
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "Nav.Categories").Text;
+    ViewData["McTab"] = "categories";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    var total = Model.Rows.Count;
+    var percent = total == 0 ? 100 : (int)Math.Round(100.0 * Model.Covered / total);
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+<p class="mc-intro">@T(P + "Categories.Intro")</p>
+
+@if (!Model.TaxonomyAvailable)
+{
+    <div class="mc-callout warning"><i class="fas fa-wifi"></i><div>@T(P + "Categories.NoTaxonomy")</div></div>
+}
+
+@if (total == 0)
+{
+    <div class="mc-card mc-empty">
+        <div class="icon muted"><i class="fas fa-sitemap"></i></div>
+        <h3>@T(P + "Categories.Empty")</h3>
+    </div>
+}
+else
+{
+    <div class="mc-card">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+            <div style="flex:1 1 320px">
+                <b style="font-size:1.1rem;color:#0f172a" id="cat-progress-text">@string.Format(T(P + "Categories.Progress").Text, Model.Covered, total)</b>
+                <div class="mc-progressbar"><i id="cat-progress-bar" style="width:@percent%"></i></div>
+            </div>
+            @if (Model.Suggestions > 0)
+            {
+                <form asp-action="AcceptSuggestions" method="post">
+                    <button type="submit" class="mc-btn primary"><i class="fas fa-magic"></i> @string.Format(T(P + "Categories.AcceptAll").Text, Model.Suggestions)</button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <div class="mc-toolbar">
+        <div class="mc-search" style="flex:1 1 260px;max-width:340px">
+            <i class="fas fa-search"></i>
+            <input type="search" class="mc-input" placeholder="@T(P + "Categories.Filter")" id="cat-filter" />
+        </div>
+        <label class="mc-switch mb-0">
+            <input type="checkbox" id="cat-unmapped" />
+            <span class="track"></span>
+            <span><b>@T(P + "Categories.OnlyUnmapped")</b></span>
+        </label>
+    </div>
+
+    <div class="mc-table-wrap" style="overflow:visible">
+        <table class="mc-table">
+            <thead>
+                <tr>
+                    <th>@T(P + "Categories.Store")</th>
+                    <th style="width:1%;text-align:right">@T(P + "Categories.Products")</th>
+                    <th>@T(P + "Categories.Google")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr data-depth="@row.Depth" data-cat="@row.CategoryId" data-name="@((row.ParentPath + " " + row.Name).ToLowerInvariant())" data-mapped="@(row.GoogleId != null || row.InheritedPath != null ? "true" : "false")" data-inherited="@(row.InheritedPath != null ? "true" : "false")">
+                        <td>
+                            <div class="mc-cat-name" style="padding-left:@(row.Depth * 18)px">
+                                @if (row.Depth > 0) { <span class="muted" aria-hidden="true">└</span> }
+                                <div>
+                                    @if (row.ParentPath != null) { <span class="path">@row.ParentPath</span> }
+                                    <b>@row.Name</b>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="text-align:right" class="muted">@row.ProductCount.ToString("N0")</td>
+                        <td>
+                            <div class="mc-gcat">
+                                <span class="chosen" style="@(row.GoogleId == null ? "display:none" : null)">
+                                    <i class="fas fa-check-circle"></i><span class="label">@row.GooglePath</span>
+                                </span>
+                                @if (row.GoogleId == null && row.SuggestedId != null)
+                                {
+                                    <span class="suggest" data-suggest="@row.SuggestedId">
+                                        <i class="fas fa-magic"></i> <span>@row.SuggestedPath</span>
+                                        <button type="button" class="mc-btn sm primary" data-mc-accept="@row.SuggestedId">@T(P + "Categories.Accept")</button>
+                                    </span>
+                                }
+                                @if (row.GoogleId == null && row.InheritedPath != null)
+                                {
+                                    <span class="inherited">@string.Format(T(P + "Categories.Inherited").Text, row.InheritedPath)</span>
+                                }
+                                <div class="mc-picker">
+                                    <input type="text" class="mc-input" placeholder="@T(P + "Categories.Pick")" autocomplete="off" />
+                                    <div class="mc-menu"></div>
+                                </div>
+                                <button type="button" class="mc-btn sm" data-mc-change>
+                                    <i class="fas @(row.GoogleId == null ? "fa-search" : "fa-pen")"></i> @T(P + (row.GoogleId == null ? "Categories.Pick" : "Categories.Change")).Text.TrimEnd('…')
+                                </button>
+                                <button type="button" class="mc-btn sm ghost danger" data-mc-remove style="@(row.GoogleId == null ? "display:none" : null)" title="@T(P + "Categories.Remove")"><i class="fas fa-times"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />
+<script>
+(function () {
+    const urls = { search: '@Url.Action("TaxonomySearch", "MerchantCenter")', map: '@Url.Action("MapCategory", "MerchantCenter")' };
+    const text = {
+        none: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Categories.NoResults").Text)),
+        saved: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Saved").Text)),
+        progress: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Categories.Progress").Text)),
+        change: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T(P + "Categories.Change").Text))
+    };
+    const rows = [...document.querySelectorAll('tr[data-cat]')];
+
+    function updateProgress() {
+        const covered = rows.filter(r => r.dataset.mapped === 'true').length;
+        const t = document.getElementById('cat-progress-text');
+        if (t) t.textContent = mc.format(text.progress, covered, rows.length);
+        const bar = document.getElementById('cat-progress-bar');
+        if (bar) bar.style.width = Math.round(100 * covered / Math.max(1, rows.length)) + '%';
+    }
+
+    async function save(row, googleId) {
+        try {
+            const result = await mc.post(urls.map, { categoryId: row.dataset.cat, googleId });
+            if (!result.ok) { mc.toast(result.message, false); return; }
+            const chosen = row.querySelector('.chosen');
+            chosen.style.display = result.path ? '' : 'none';
+            chosen.querySelector('.label').textContent = result.path || '';
+            row.querySelector('.suggest')?.remove();
+            row.querySelector('.inherited')?.remove();
+            row.querySelector('[data-mc-remove]').style.display = result.path ? '' : 'none';
+            row.querySelector('[data-mc-change]').innerHTML = '<i class="fas fa-pen"></i> ' + mc.escape(text.change);
+            row.dataset.mapped = result.path ? 'true' : (row.dataset.inherited === 'true' ? 'true' : 'false');
+            closePicker(row);
+            updateProgress();
+            mc.toast(text.saved);
+            // Subcategories inherit this mapping, so show their new state.
+            const next = row.nextElementSibling;
+            if (next && Number(next.dataset.depth) > Number(row.dataset.depth)) setTimeout(() => window.location.reload(), 700);
+        } catch { mc.toast(mc.text.failed, false); }
+    }
+
+    function closePicker(row) {
+        const picker = row.querySelector('.mc-picker');
+        picker.classList.remove('on');
+        picker.querySelector('.mc-menu').classList.remove('on');
+        row.querySelector('[data-mc-change]').style.display = '';
+    }
+
+    function openPicker(row) {
+        rows.forEach(r => r !== row && closePicker(r));
+        const picker = row.querySelector('.mc-picker');
+        picker.classList.add('on');
+        row.querySelector('[data-mc-change]').style.display = 'none';
+        const input = picker.querySelector('input');
+        input.value = '';
+        input.focus();
+        // Start with the store category's own name, which usually finds the right one.
+        const name = row.querySelector('.mc-cat-name b').textContent.trim();
+        input.value = name;
+        search(row, name);
+        input.select();
+    }
+
+    const search = mc.debounce(async (row, q) => {
+        const menu = row.querySelector('.mc-menu');
+        if (!q.trim()) { menu.classList.remove('on'); return; }
+        try {
+            const data = await mc.get(urls.search + '?q=' + encodeURIComponent(q));
+            if (!data.available && /^\d+$/.test(q.trim())) {
+                menu.innerHTML = '<button type="button" data-id="' + q.trim() + '"><b>#' + mc.escape(q.trim()) + '</b></button>';
+            } else if (!data.results.length) {
+                menu.innerHTML = '<div class="none">' + mc.escape(text.none) + '</div>';
+            } else {
+                menu.innerHTML = data.results.map(r => {
+                    const parent = r.path.includes(' > ') ? r.path.slice(0, r.path.lastIndexOf(' > ')) : '';
+                    return '<button type="button" data-id="' + r.id + '"><b>' + mc.escape(r.name) + '</b><span>' + mc.escape(parent) + ' · #' + r.id + '</span></button>';
+                }).join('');
+            }
+            menu.classList.add('on');
+        } catch { }
+    }, 180);
+
+    rows.forEach(row => {
+        const input = row.querySelector('.mc-picker input');
+        input.addEventListener('input', () => search(row, input.value));
+        input.addEventListener('keydown', (e) => {
+            const items = [...row.querySelectorAll('.mc-menu button')];
+            let i = items.findIndex(b => b.classList.contains('focus'));
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                items[i]?.classList.remove('focus');
+                i = e.key === 'ArrowDown' ? Math.min(items.length - 1, i + 1) : Math.max(0, i - 1);
+                items[i]?.classList.add('focus');
+                items[i]?.scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                (items[i] ?? items[0])?.click();
+            } else if (e.key === 'Escape') {
+                closePicker(row);
+            }
+        });
+        row.addEventListener('click', (e) => {
+            if (e.target.closest('[data-mc-change]')) openPicker(row);
+            else if (e.target.closest('[data-mc-remove]')) save(row, 0);
+            else if (e.target.closest('[data-mc-accept]')) save(row, e.target.closest('[data-mc-accept]').dataset.mcAccept);
+            else if (e.target.closest('.mc-menu button[data-id]')) save(row, e.target.closest('.mc-menu button').dataset.id);
+        });
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.mc-gcat')) rows.forEach(closePicker);
+    });
+
+    const filter = document.getElementById('cat-filter');
+    const unmapped = document.getElementById('cat-unmapped');
+    function applyFilter() {
+        const q = (filter?.value || '').trim().toLowerCase();
+        rows.forEach(r => r.style.display = (!q || r.dataset.name.includes(q)) && (!unmapped?.checked || r.dataset.mapped !== 'true') ? '' : 'none');
+    }
+    filter?.addEventListener('input', applyFilter);
+    unmapped?.addEventListener('change', applyFilter);
+})();
+</script>

@@ -1,0 +1,266 @@
+@model PreviewModel
+@{
+    Layout = "_AdminLayout";
+    const string P = MerchantCenterDefaults.ResourcePrefix;
+    ViewBag.PageTitle = T(P + "Nav.Preview").Text;
+    ViewData["McTab"] = "preview";
+    NopHtml.SetActiveMenuItemSystemName(MerchantCenterDefaults.SystemName);
+    string Tone(IssueSeverity s) => s == IssueSeverity.Error ? "error" : s == IssueSeverity.Warning ? "warning" : "info";
+    string Money(decimal value, string currency) => $"{value:N2} {currency}";
+}
+@functions {
+    static string Availability(ItemAvailability a) => a switch
+    {
+        ItemAvailability.OutOfStock => "Preview.OutOfStock",
+        ItemAvailability.Preorder => "Preview.Preorder",
+        ItemAvailability.Backorder => "Preview.Backorder",
+        _ => "Preview.InStock"
+    };
+}
+
+<div class="mc">
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Header.cshtml" />
+
+@if (Model.Feeds.Count == 0)
+{
+    <div class="mc-card mc-empty">
+        <div class="icon muted"><i class="far fa-eye"></i></div>
+        <h3>@T(P + "Nav.Preview")</h3>
+        <p>@T(P + "Preview.NoFeed")</p>
+        <a asp-action="Configure" class="mc-btn primary"><i class="fas fa-plus"></i> @T(P + "QuickStart.Create")</a>
+    </div>
+}
+else
+{
+    <p class="mc-intro">@T(P + "Preview.Intro")</p>
+    <div class="mc-card" style="overflow:visible">
+        <div class="mc-toolbar mb-0">
+            @if (Model.Feeds.Count > 1)
+            {
+                <select class="mc-input" style="max-width:240px" id="pv-feed" aria-label="@T(P + "Issues.Feed")">
+                    @foreach (var card in Model.Feeds) { <option value="@card.Feed.Id" selected="@(card.Feed.Id == Model.FeedId)">@card.Feed.Name</option> }
+                </select>
+            }
+            else
+            {
+                <input type="hidden" id="pv-feed" value="@Model.FeedId" />
+            }
+            <div class="mc-search mc-picker on" style="flex:1 1 360px;max-width:560px">
+                <i class="fas fa-search"></i>
+                <input type="search" class="mc-input" id="pv-search" placeholder="@T(P + "Preview.Search")" autocomplete="off" value="@Model.ProductName" />
+                <div class="mc-menu" id="pv-menu"></div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.ProductId == 0 || Model.Items.Count == 0)
+    {
+        <div class="mc-card mc-empty">
+            <div class="icon muted"><i class="fas fa-search"></i></div>
+            <p class="mb-0">@T(P + "Preview.Pick")</p>
+        </div>
+    }
+    else
+    {
+        if (Model.Excluded)
+        {
+            <div class="mc-callout warning"><i class="fas fa-eye-slash"></i><div>@T(P + "Preview.Excluded")</div></div>
+        }
+        else if (!Model.InFeed)
+        {
+            <div class="mc-callout info"><i class="fas fa-info-circle"></i><div>@T(P + "Preview.NotInFeed")</div></div>
+        }
+
+        if (Model.Items.Count > 1)
+        {
+            <div class="mc-variant-tabs" role="tablist">
+                <span class="muted small" style="align-self:center;margin-right:6px">@string.Format(T(P + "Preview.Variants").Text, Model.Items.Count)</span>
+                @for (var i = 0; i < Model.Items.Count; i++)
+                {
+                    var v = Model.Items[i];
+                    <button type="button" class="@(i == 0 ? "active" : null)" data-variant="@i" role="tab">
+                        <span class="dot @(v.HeldBack ? "error" : "info")" style="width:7px;height:7px;border-radius:50%;display:inline-block;background:@(v.HeldBack ? "#dc2626" : "#16a34a")"></span>
+                        @(string.Join(" / ", new[] { v.Item.Color, v.Item.Size }.Where(s => !string.IsNullOrEmpty(s))) is { Length: > 0 } label ? label : v.Item.Id)
+                    </button>
+                }
+            </div>
+        }
+
+        for (var i = 0; i < Model.Items.Count; i++)
+        {
+            var pv = Model.Items[i];
+            var item = pv.Item;
+            var byAttribute = pv.Issues.Where(x => x.Attribute != null).GroupBy(x => x.Attribute).ToDictionary(g => g.Key, g => g.Max(x => x.Severity));
+            string RowClass(string attribute) => byAttribute.TryGetValue(attribute, out var s) ? (s == IssueSeverity.Error ? "bad" : s == IssueSeverity.Warning ? "flag" : null) : null;
+            var rows = new (string Name, string Value)[]
+            {
+                ("id", item.Id),
+                ("title", item.Title),
+                ("description", item.Description.Length > 400 ? item.Description[..400] + "…" : item.Description),
+                ("link", item.Link),
+                ("image_link", item.ImageLink),
+                ("additional_image_link", item.AdditionalImageLinks.Count == 0 ? null : item.AdditionalImageLinks.Count.ToString()),
+                ("availability", FeedXmlWriter.AvailabilityValue(item.Availability)),
+                ("price", Money(item.Price, item.Currency)),
+                ("sale_price", item.SalePrice is { } sp ? Money(sp, item.Currency) : null),
+                ("sale_price_effective_date", item.SalePrice != null && (item.SaleStartUtc != null || item.SaleEndUtc != null) ? FeedXmlWriter.SaleDates(item.SaleStartUtc, item.SaleEndUtc) : null),
+                ("brand", item.Brand),
+                ("gtin", item.Gtin),
+                ("mpn", item.Mpn),
+                ("identifier_exists", item.IdentifierExists == false ? "no" : null),
+                ("condition", item.Condition),
+                ("google_product_category", item.GoogleProductCategory == null ? null : $"{pv.GooglePath} (#{item.GoogleProductCategory})"),
+                ("product_type", item.ProductType),
+                ("item_group_id", item.ItemGroupId),
+                ("color", item.Color),
+                ("size", item.Size),
+                ("gender", item.Gender),
+                ("age_group", item.AgeGroup),
+                ("shipping_weight", item.ShippingWeight is > 0 ? $"{item.ShippingWeight:0.###} {item.ShippingWeightUnit}" : null)
+            };
+            <div class="mc-variant @(i == 0 ? "active" : null)" data-variant-panel="@i">
+                <div class="mc-status @(pv.HeldBack ? "bad" : "ok")">
+                    <span class="big"><i class="fas @(pv.HeldBack ? "fa-ban" : "fa-check")"></i></span>
+                    <div style="flex:1">
+                        <b>@T(P + (pv.HeldBack ? "Preview.HeldBack" : "Preview.Ready"))</b>
+                        <span>@T(P + (pv.HeldBack ? "Preview.HeldBack.Text" : "Preview.Ready.Text"))</span>
+                    </div>
+                    <a class="mc-btn sm" href="@Url.Content("~/Admin/Product/Edit/" + item.ProductId)" target="_blank" rel="noopener"><i class="fas fa-pen"></i> @T(P + "Preview.EditProduct")</a>
+                </div>
+
+                <div class="mc-grid" style="grid-template-columns:minmax(240px,300px) minmax(0,1fr)">
+                    <div>
+                        <div class="mc-label">@T(P + "Preview.Mock")</div>
+                        <div class="mc-gs">
+                            <div class="img">
+                                @if (item.ImageLink != null) { <img src="@item.ImageLink" alt="" /> } else { <i class="far fa-image"></i> }
+                            </div>
+                            <div class="body">
+                                <div class="title">@item.Title</div>
+                                <div class="price">
+                                    @Money(item.EffectivePrice, item.Currency)
+                                    @if (item.SalePrice != null)
+                                    {
+                                        <s>@Money(item.Price, item.Currency)</s>
+                                        <span class="sale">−@((int)Math.Round(100 - 100 * item.SalePrice.Value / item.Price))%</span>
+                                    }
+                                </div>
+                                <div class="store">@Model.StoreName</div>
+                                <div class="stock @(item.Availability == ItemAvailability.OutOfStock ? "out" : null)">@T(P + Availability(item.Availability))</div>
+                            </div>
+                        </div>
+                        <div class="muted small mt-2">@T(P + "Preview.Mock.Note")</div>
+
+                        @if (pv.Issues.Count > 0)
+                        {
+                            <div class="mc-card mt-3" style="padding:16px">
+                                @foreach (var issue in pv.Issues.OrderByDescending(x => x.Severity))
+                                {
+                                    <div class="mc-issue" style="margin-bottom:10px">
+                                        <span class="mc-pill @Tone(issue.Severity)">@T(P + "Severity." + issue.Severity)</span>
+                                        <div><b style="color:#0f172a">@T(P + "Issue." + issue.Code)</b><div class="muted small">@T(P + "Issue." + issue.Code + ".Fix")</div></div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div style="min-width:0">
+                        <div class="mc-card" style="padding:0;overflow:hidden">
+                            <div class="mc-card-title" style="padding:16px 18px 0">@T(P + "Preview.Attributes")</div>
+                            <table class="mc-attrs">
+                                @foreach (var (name, value) in rows)
+                                {
+                                    <tr class="@(string.IsNullOrEmpty(value) ? "empty" : null) @RowClass(name)">
+                                        <td>@name</td>
+                                        <td>@(string.IsNullOrEmpty(value) ? T(P + "Preview.Empty").Text : value)</td>
+                                    </tr>
+                                }
+                            </table>
+                        </div>
+                        <div class="mc-card-title">
+                            @T(P + "Preview.Xml")
+                            <span class="mc-spacer"></span>
+                            <button type="button" class="mc-btn sm" data-mc-copy="#xml-@i"><i class="far fa-copy"></i> @T(P + "Preview.Copy")</button>
+                        </div>
+                        <pre class="mc-xml" id="xml-@i">@pv.Xml</pre>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="mc-card mt-3">
+            <h3><i class="fas fa-sliders-h" style="color:#2563eb"></i> @T(P + "Preview.Settings")</h3>
+            <form asp-action="ProductSetting" method="post" class="mc-row" style="align-items:end">
+                <input type="hidden" name="productId" value="@Model.ProductId" />
+                <input type="hidden" name="feedId" value="@Model.FeedId" />
+                <div class="mc-field">
+                    <label for="pv-condition">@T(P + "Preview.Condition")</label>
+                    <select id="pv-condition" name="condition" class="mc-input">
+                        @foreach (var c in new[] { "new", "used", "refurbished" }) { <option value="@c" selected="@(Model.Condition == c)">@T(P + "Preview.Condition." + c)</option> }
+                    </select>
+                </div>
+                <div class="mc-field">
+                    <label class="mc-switch mb-2">
+                        <input type="checkbox" name="excluded" value="true" checked="@Model.Excluded" />
+                        <span class="track"></span>
+                        <span><b>@T(P + "Preview.ExcludeLabel")</b></span>
+                    </label>
+                </div>
+                <div class="mc-actions" style="grid-column:1/-1">
+                    <button type="submit" class="mc-btn primary"><i class="far fa-save"></i> @T(P + "Preview.Save")</button>
+                    <span class="muted small">@T(P + "Preview.Rebuild")</span>
+                </div>
+            </form>
+        </div>
+    }
+}
+</div>
+
+<partial name="~/Plugins/Feed.CartenvoMerchantCenter/Views/_Scripts.cshtml" />
+<script>
+(function () {
+    const input = document.getElementById('pv-search');
+    if (!input) return;
+    const menu = document.getElementById('pv-menu');
+    const feed = document.getElementById('pv-feed');
+    const go = id => { window.location.href = '@Url.Action("Preview", "MerchantCenter")?feedId=' + feed.value + '&productId=' + id; };
+    const search = mc.debounce(async () => {
+        const q = input.value.trim();
+        if (q.length < 2) { menu.classList.remove('on'); return; }
+        try {
+            const results = await mc.get('@Url.Action("ProductSearch", "MerchantCenter")?q=' + encodeURIComponent(q));
+            menu.innerHTML = results.length
+                ? results.map(r => '<button type="button" data-id="' + r.id + '"><img src="' + mc.escape(r.image) + '" alt="" /><b>' + mc.escape(r.name) + '</b><span>' + mc.escape(r.sku || ('#' + r.id)) + '</span></button>').join('')
+                : '<div class="none">—</div>';
+            menu.classList.add('on');
+        } catch { }
+    }, 200);
+    input.addEventListener('input', search);
+    input.addEventListener('focus', () => { if (input.value && !menu.innerHTML) search(); else if (menu.innerHTML) menu.classList.add('on'); });
+    input.addEventListener('keydown', (e) => {
+        const items = [...menu.querySelectorAll('button')];
+        let i = items.findIndex(b => b.classList.contains('focus'));
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault(); items[i]?.classList.remove('focus');
+            i = e.key === 'ArrowDown' ? Math.min(items.length - 1, i + 1) : Math.max(0, i - 1);
+            items[i]?.classList.add('focus');
+        } else if (e.key === 'Enter') { e.preventDefault(); (items[i] ?? items[0])?.click(); }
+    });
+    menu.addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.mc-search')) menu.classList.remove('on'); });
+    feed.addEventListener?.('change', () => { const url = new URL(window.location.href); url.searchParams.set('feedId', feed.value); window.location.href = url; });
+
+    document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('[data-variant]').forEach(x => x.classList.toggle('active', x === b));
+        document.querySelectorAll('[data-variant-panel]').forEach(p => p.classList.toggle('active', p.dataset.variantPanel === b.dataset.variant));
+    }));
+
+    // Colour the XML a little: tags blue, values yellow.
+    document.querySelectorAll('.mc-xml').forEach(pre => {
+        const html = mc.escape(pre.textContent)
+            .replace(/(&lt;\/?)([\w:]+)(&gt;)/g, '$1<span class="t">$2</span>$3')
+            .replace(/(&gt;)([^&<\n][^<\n]*?)(&lt;)/g, '$1<span class="v">$2</span>$3');
+        pre.innerHTML = html;
+    });
+})();
+</script>
